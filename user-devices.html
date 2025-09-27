@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Your Devices · AutoFlag</title>
+  <style>
+    :root { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    html, body { height: 100%; }
+    body { margin: 24px; max-width: 1024px; }
+    h1 { margin: 0 0 12px; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 8px 0 16px; }
+    .muted { opacity: .75; font-size: 12px; }
+    button { padding: 8px 12px; font-size: 14px; cursor: pointer; }
+    #status { font-size: 13px; }
+
+    .list { display: grid; gap: 10px; margin-top: 8px; }
+    .card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; background: #fff; cursor: pointer; }
+    .card:hover { background: #f9fafb; }
+    .name { font-weight: 600; }
+    .meta { font-size: 13px; opacity: .8; margin-top: 2px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <h1>Your devices</h1>
+
+  <div class="row">
+    <span id="status" class="muted"></span>
+    <button id="refresh" class="right">Refresh</button>
+  </div>
+
+  <div id="list" class="list">
+    <div class="muted">Loading…</div>
+  </div>
+
+  <script src="user-devices.js"></script>
+</body>
+</html>
