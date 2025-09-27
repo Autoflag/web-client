@@ -21,6 +21,8 @@
   const emqxSendOct     = $('emqxSendOct');
   const emqxLastChecked = $('emqxLastChecked');
   const btnEmqxRefresh  = $('btnEmqxRefresh');
+  const emqxEfuse       = $('emqxEfuse');
+  const emqxFirmware    = $('emqxFirmware');
 
   const btns = {
     status: $('btnStatus'),
@@ -99,8 +101,8 @@
     emqxSendOct.textContent     = Number.isFinite(info.send_oct) ? String(info.send_oct) : (info.send_oct ?? '—');
     emqxLastChecked.textContent = new Date().toLocaleString();
   }
-  async function fetchEmqxClient(deviceId) {
-    const url = `https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(deviceId)}`;
+  async function fetchEmqxClient() {
+    const url = `https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(DEVICE_ID)}`;
     try {
       const res = await fetch(url, { method: 'GET' });
       if (!res.ok) {
@@ -117,7 +119,41 @@
       btnEmqxRefresh.disabled = false;
     }
   }
-  fetchEmqxClient(DEVICE_ID);
+  fetchEmqxClient();
+
+  async function fetchEmqxClientMetadataTopic() {
+    const url = `https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(DEVICE_ID)}/subscriptions`;
+    try {
+      const res = await fetch(url, { method: 'GET' });
+      if (!res.ok) {
+        console.error(`EMQX metadata fetch error: ${res.status} ${res.statusText}`);
+        return null;
+      }
+      const data = await res.json();
+      const metadataTopic = Array.isArray(data) ? data.find(s => s.topic.includes('EFUSE:')) : null;
+      if (metadataTopic) {
+        // example: "mqtt_communication/AutoFlag/EFUSE:6478F016A3986C10/ID:828713/MQTT_HOST:209.38.70.39/FIRMWARE: v4.0.0-beta.3"
+        const parts = metadataTopic.topic.split('/');
+        const info = {};
+        for (const part of parts) {
+          const [k, v] = part.split(':');
+          if (k && v) info[k] = v.trim();
+        }
+        if (info.EFUSE) {
+          emqxEfuse.textContent = info.EFUSE;
+          emqxEfuse.closest('.item').hidden = false;
+        }
+        if (info.FIRMWARE) {
+          emqxFirmware.textContent = info.FIRMWARE;
+          emqxFirmware.closest('.item').hidden = false;
+        }
+      }
+    } catch (error) {
+      console.error(`EMQX metadata fetch error`, error);
+    }
+    return null;
+  }
+  fetchEmqxClientMetadataTopic();
 
   // Connect
   const connectUrl = 'wss://mqtt.dev-proxy.api-autoflag.com/mqtt';
@@ -281,6 +317,8 @@
 
   // EMQX refresh button
   btnEmqxRefresh.addEventListener('click', () => {
-    fetchEmqxClient(DEVICE_ID);
+    fetchEmqxClient();
+    fetchEmqxClientMetadataTopic();
   });
 })();
+

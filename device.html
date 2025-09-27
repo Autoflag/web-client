@@ -24,6 +24,7 @@
     .panel .value { font-variant-numeric: tabular-nums; }
     .panel .fine { opacity: .7; font-size: 12px; }
     button.label { padding: 5px 0px; }
+    .item[hidden] { display: none !important; }
 
     /* Control sections */
     .controls { margin: 12px 0; }
@@ -55,6 +56,8 @@
     <div class="item"><div class="label">Connected at</div><div class="value" id="emqxConnectedAt">—</div></div>
     <div class="item"><div class="label">IP address</div><div class="value" id="emqxIp">—</div></div>
     <div class="item"><div class="label">Bytes</div><div class="value">sent: <span id="emqxSendOct">-</span>, recv: <span id="emqxRecvOct">-</span></div></div>
+    <div class="item" hidden><div class="label">Efuse</div><div class="value" id="emqxEfuse">—</div></div>
+    <div class="item" hidden><div class="label">Firmware</div><div class="value" id="emqxFirmware">—</div></div>
     <div class="item">
       <button class="label" id="btnEmqxRefresh" disabled>Refresh</button>
       <div class="value">Checked <span id="emqxLastChecked">—</span></div>
