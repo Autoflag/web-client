@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AutoFlag BLE Console</title>
+  <style>
+    :root { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    body { margin: 24px; max-width: 900px; }
+    button { padding: 10px 14px; font-size: 14px; cursor: pointer; }
+    fieldset { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin: 0 0 16px; }
+    legend { padding: 0 6px; font-weight: 600; }
+    label { display: block; margin: 10px 0 4px; font-size: 13px; color: #333; }
+    input, select, textarea { width: 100%; padding: 8px; font-size: 14px; box-sizing: border-box; }
+    #controls { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
+    #status { white-space: pre-wrap; background: #111; color: #eee; padding: 12px; border-radius: 8px; min-height: 160px; }
+    .grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { opacity: .75; font-size: 12px; }
+    @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <h1>AutoFlag BLE Console</h1>
+
+  <div class="muted">
+    Service UUID: <code>3159e1ed-1e93-412c-9591-c146b2ce70fc</code> ·
+    TX: <code>99000ae1-42bd-4ca1-9b00-1815c0cc351f</code> ·
+    RX: <code>99000ae2-42bd-4ca1-9b00-1815c0cc351f</code>
+  </div>
+
+  <div id="controls">
+    <button id="btnConnect">Connect</button>
+    <button id="btnDisconnect" disabled>Disconnect</button>
+    <button id="btnSend" disabled>Send JSON</button>
+    <button id="btnClear">Clear Log</button>
+  </div>
+
+  <fieldset>
+    <legend>Configuration Payload</legend>
+    <div class="grid">
+      <div>
+        <label for="ssid">ssid</label>
+        <input id="ssid" type="text" value="CBB" autocomplete="off" />
+      </div>
+      <div>
+        <label for="pss">pss</label>
+        <input id="pss" type="text" value="bbbbbbbbbb" autocomplete="off" />
+      </div>
+      <div>
+        <label for="id">id</label>
+        <input id="id" type="text" class="mono" autocomplete="off" />
+      </div>
+      <div>
+        <label for="cit">cit</label>
+        <input id="cit" type="text" value="Boise" autocomplete="off" />
+      </div>
+      <div>
+        <label for="cou">cou</label>
+        <select id="cou">
+          <option value="1" selected>United States</option>
+          <option value="124">Canada</option>
+          <option value="826">United Kingdom</option>
+          <option value="36">Australia</option>
+          <option value="276">Germany</option>
+        </select>
+      </div>
+      <div>
+        <label for="sta">sta</label>
+        <select id="sta">
+          <option value="1" selected>Idaho</option>
+          <option value="2">Washington</option>
+          <option value="3">Oregon</option>
+          <option value="4">California</option>
+          <option value="5">Utah</option>
+        </select>
+      </div>
+    </div>
+    <label for="jsonPreview">Preview</label>
+    <textarea id="jsonPreview" class="mono" rows="6" spellcheck="false" readonly></textarea>
+  </fieldset>
+
+  <h3>Log</h3>
+  <pre id="status"></pre>
+
+  <script src="app.js"></script>
+</body>
+</html>
