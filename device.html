@@ -6,7 +6,8 @@
   <title>AutoFlag Device</title>
   <style>
     :root { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
-    body { margin: 24px; max-width: 960px; }
+    html, body { height: 100%; }
+    body { margin: 24px; max-width: 960px; display: flex; flex-direction: column; }
     h1 { margin: 0 0 8px; }
     .muted { opacity: .75; font-size: 12px; }
     .grid { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0; }
@@ -15,8 +16,18 @@
     button { padding: 10px 12px; font-size: 14px; cursor: pointer; }
     #status { margin: 10px 0; }
     #topics code { display: inline-block; padding: 2px 4px; background: #f4f4f4; border-radius: 4px; }
-    #log { white-space: pre-wrap; background: #111; color: #eee; padding: 12px; border-radius: 8px; min-height: 220px; }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* Status panel */
+    .panel { background: #f9fafb; border: 1px solid #eee; border-radius: 10px; padding: 12px; margin-top: 10px; }
+    .panel .item { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+    .panel .label { min-width: 140px; font-weight: 600; opacity: .8; }
+    .panel .value { font-variant-numeric: tabular-nums; }
+    .panel .fine { opacity: .7; font-size: 12px; }
+
+    /* Console grows and scrolls */
+    .console-wrap { display: flex; flex-direction: column; min-height: 0; }
+    #log { white-space: pre-wrap; background: #111; color: #eee; padding: 12px; border-radius: 8px; min-height: 220px; flex: 1; min-height: 0; overflow: auto; }
   </style>
 </head>
 <body>
@@ -28,6 +39,23 @@
 
   <div id="status" class="row">
     <b>Device ID:</b><code id="deviceId">(reading from ?device_id=...)</code>
+  </div>
+
+  <!-- Status panel -->
+  <div class="panel" id="statusPanel" aria-live="polite">
+    <div class="item"><div class="label">Battery</div><div class="value" id="sBattery">—</div></div>
+    <div class="item"><div class="label">Flag position</div><div class="value" id="sFlag">—</div></div>
+    <div class="item"><div class="label">Calibration</div><div class="value" id="sCal">—</div></div>
+    <div class="item"><div class="label">Maintenance</div>
+      <div class="value" style="display:flex; align-items:center; gap:10px;">
+        <span id="sMaint">—</span>
+        <label style="display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="chkMaint" disabled />
+          <span class="fine">Toggle maintenance mode</span>
+        </label>
+      </div>
+    </div>
+    <div class="item"><div class="label">Last status</div><div class="value" id="sLast">—</div></div>
   </div>
 
   <div class="grid">
@@ -42,7 +70,7 @@
   </div>
 
   <h3>Console</h3>
-  <pre id="log"></pre>
+  <div class="console-wrap"><pre id="log"></pre></div>
 
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="device.js"></script>

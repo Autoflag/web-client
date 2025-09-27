@@ -6,6 +6,13 @@
   const deviceIdEl = $('deviceId');
   const clientIdEl = $('clientId');
 
+  const sBattery = $('sBattery');
+  const sFlag = $('sFlag');
+  const sCal = $('sCal');
+  const sMaint = $('sMaint');
+  const sLast = $('sLast');
+  const chkMaint = $('chkMaint');
+
   const btns = {
     status: $('btnStatus'),
     echo: $('btnEcho'),
@@ -36,17 +43,29 @@
       fractionalSecondDigits: 3, hour12: false
     }).format(new Date());
     logEl.textContent += `[${ts}] ${line}\n`;
-    logEl.scrollTop = logEl.scrollHeight;
+    const stick = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 2;
+    if (stick) logEl.scrollTop = logEl.scrollHeight;
   }
 
-  function setEnabled(connected) {
-    const enable = connected && !!DEVICE_ID;
+  function setButtonsEnabled(yes) {
+    const enable = yes && !!DEVICE_ID && initialStatusReceived;
     Object.values(btns).forEach((b) => b.disabled = !enable);
+    // Maintenance checkbox enabled separately below
+  }
+
+  function fmtTime(d) {
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }).format(d);
+    } catch { return d.toLocaleString(); }
   }
 
   if (!DEVICE_ID) {
     log('Missing device_id query parameter. Example: ?device_id=17589400948014EX');
-    setEnabled(false);
+    setButtonsEnabled(false);
+    chkMaint.disabled = true;
     return;
   }
 
@@ -65,24 +84,95 @@
 
   const client = mqtt.connect(connectUrl, options);
 
+  let initialStatusReceived = false;
+  let maintPending = false;
+
+  function setCalibrationStatus(calibrated) {
+    sCal.textContent = calibrated ? '🎯 Calibrated' : '🚧 Not calibrated';
+  }
+
+  function setMaintenanceStatus(on) {
+    sMaint.textContent = on ? '🛠️ On' : '🛠️ Off';
+    chkMaint.checked = on;
+  }
+
+  // UI helpers from status packet
+  function renderStatus(obj) {
+    // Expect keys: vtg (volts as string), per (0-100), char (0/1), Fpos (0-3), Fcal (0/1), Mmode (0/1)
+    const per = Number(obj.per);
+    const vtg = Number(obj.vtg);
+    const charging = Number(obj.char) === 1;
+    const fpos = Number(obj.Fpos);
+    const fcal = Number(obj.Fcal) === 1;
+    const mmode = Number(obj.Mmode) === 1;
+
+    // Battery
+    const battEmoji = charging ? '🔋' : '🪫';
+    const pct = Number.isFinite(per) ? `${per}%` : '—';
+    const volts = Number.isFinite(vtg) ? `${vtg.toFixed(2)}V` : `${obj.vtg ?? '—'}V`;
+    sBattery.textContent = `${battEmoji} ${pct} (${volts})`;
+
+    // Flag position
+    const posText = (
+      fpos === 1 ? '⬆️  Top' :
+      fpos === 2 ? '↕️  Mid' :
+      fpos === 3 ? '⬇️  Bottom' :
+      '❔ Unknown'
+    );
+    sFlag.textContent = posText;
+
+    // Calibration
+    setCalibrationStatus(fcal);
+
+    // Maintenance
+    setMaintenanceStatus(mmode);
+
+    // Last update timestamp
+    sLast.textContent = fmtTime(new Date());
+
+    // After first good status, enable controls
+    if (!initialStatusReceived) {
+      initialStatusReceived = true;
+      setButtonsEnabled(true);
+      chkMaint.disabled = false; // allow toggling
+    }
+  }
+
+  function publish(payload) {
+    const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    log(`← ${data}`);
+    client.publish(PUB_TOPIC, data, { qos: 0, retain: false }, (err) => {
+      if (err) log(`Publish error: ${String(err)}`);
+    });
+  }
+
   client.on('connect', () => {
     log(`Connected to MQTT broker`);
     log(`→ Listening to: ${RESP_TOPIC}`);
     log(`← Sending to: ${PUB_TOPIC}`);
-    setEnabled(true);
+    initialStatusReceived = false;
+    setButtonsEnabled(true); // still disabled until initialStatusReceived
+    Object.values(btns).forEach((b) => b.disabled = true);
+    chkMaint.disabled = true;
+
     client.subscribe(RESP_TOPIC, { qos: 0 }, (err) => {
-      if (err) log(`Subscribe error: ${String(err)}`);
+      if (err) { log(`Subscribe error: ${String(err)}`); return; }
+      // Request current status immediately
+      publish('STATUS');
+      log('Requesting device status...');
     });
   });
 
   client.on('reconnect', () => {
     log('Reconnecting…');
-    setEnabled(false);
+    setButtonsEnabled(false);
+    chkMaint.disabled = true;
   });
 
   client.on('close', () => {
     log('Connection closed.');
-    setEnabled(false);
+    setButtonsEnabled(false);
+    chkMaint.disabled = true;
   });
 
   client.on('error', (err) => {
@@ -94,16 +184,26 @@
   client.on('message', (topic, payload /* Uint8Array */) => {
     const msg = decoder.decode(payload);
     log(`→ ${msg}`);
-  });
 
-  // Publisher helper
-  function publish(payload) {
-    const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    log(`← ${data}`);
-    client.publish(PUB_TOPIC, data, { qos: 0, retain: false }, (err) => {
-      if (err) log(`Publish error: ${String(err)}`);
-    });
-  }
+    // Try to parse JSON status packets
+    let parsed = null;
+    try { parsed = JSON.parse(msg); } catch {}
+
+    if (parsed && typeof parsed === 'object') {
+      if ('vtg' in parsed || 'per' in parsed || 'Fpos' in parsed || 'Mmode' in parsed) {
+        renderStatus(parsed);
+        return;
+      }
+    }
+
+    // Check for responses that end maintenance toggle pending state
+    const m = msg.trim().toUpperCase();
+    if (maintPending && (m.includes('SUCCESS') || m.includes('FAILED'))) {
+      maintPending = false;
+      chkMaint.disabled = false;
+      setMaintenanceStatus(chkMaint.checked);
+    }
+  });
 
   // Buttons
   let lastMsgNumber = 0;
@@ -119,4 +219,13 @@
   btns.upper.addEventListener('click', () => publish('UP'));
   btns.mid.addEventListener('click', () => publish('MID'));
   btns.lower.addEventListener('click', () => publish('DOWN'));
+
+  // Maintenance checkbox toggle
+  chkMaint.addEventListener('change', () => {
+    const desired = chkMaint.checked; // true => ON, false => OFF
+    const cmd = desired ? 'MANUAL ON' : 'MANUAL OFF';
+    maintPending = true;
+    chkMaint.disabled = true; // disable until SUCCESS/FAILED
+    publish(cmd);
+  });
 })();
