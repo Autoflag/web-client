@@ -13,6 +13,15 @@
   const sLast = $('sLast');
   const chkMaint = $('chkMaint');
 
+  // EMQX advanced info elements
+  const emqxConnected   = $('emqxConnected');
+  const emqxConnectedAt = $('emqxConnectedAt');
+  const emqxIp          = $('emqxIp');
+  const emqxRecvOct     = $('emqxRecvOct');
+  const emqxSendOct     = $('emqxSendOct');
+  const emqxLastChecked = $('emqxLastChecked');
+  const btnEmqxRefresh  = $('btnEmqxRefresh');
+
   const btns = {
     status: $('btnStatus'),
     echo: $('btnEcho'),
@@ -69,6 +78,39 @@
     return;
   }
 
+  // EMQX API helpers
+  function renderEmqxInfo(info) {
+    function fmtIsoOrDash(s) {
+      if (!s) return '—';
+      try { return new Date(s).toLocaleString(); } catch { return s; }
+    }
+    emqxConnected.textContent   = info.connected ? '🟢 Connected' : '❌ Disconnected';
+    emqxConnectedAt.textContent = fmtIsoOrDash(info.connected_at);
+    emqxIp.textContent          = info.ip_address || '—';
+    emqxRecvOct.textContent     = Number.isFinite(info.recv_oct) ? String(info.recv_oct) : (info.recv_oct ?? '—');
+    emqxSendOct.textContent     = Number.isFinite(info.send_oct) ? String(info.send_oct) : (info.send_oct ?? '—');
+    emqxLastChecked.textContent = new Date().toLocaleString();
+  }
+  async function fetchEmqxClient(deviceId) {
+    const url = `https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(deviceId)}`;
+    try {
+      const res = await fetch(url, { method: 'GET' });
+      if (!res.ok) {
+        emqxConnected.textContent = `(${res.status} ${res.statusText})`;
+        return null;
+      }
+      const data = await res.json();
+      renderEmqxInfo(data);
+      return data;
+    } catch {
+      emqxConnected.textContent = '(request failed)';
+      return null;
+    } finally {
+      btnEmqxRefresh.disabled = false;
+    }
+  }
+  fetchEmqxClient(DEVICE_ID);
+
   // Connect
   const connectUrl = 'wss://mqtt.dev-proxy.api-autoflag.com/mqtt';
   const options = {
@@ -96,7 +138,7 @@
     chkMaint.checked = on;
   }
 
-  // UI helpers from status packet
+  // Status render
   function renderStatus(obj) {
     // Expect keys: vtg (volts as string), per (0-100), char (0/1), Fpos (0-3), Fcal (0/1), Mmode (0/1)
     const per = Number(obj.per);
@@ -227,5 +269,10 @@
     maintPending = true;
     chkMaint.disabled = true; // disable until SUCCESS/FAILED
     publish(cmd);
+  });
+
+  // EMQX refresh button
+  btnEmqxRefresh.addEventListener('click', () => {
+    fetchEmqxClient(DEVICE_ID);
   });
 })();

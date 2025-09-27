@@ -41,6 +41,18 @@
     <b>Device ID:</b><code id="deviceId">(reading from ?device_id=...)</code>
   </div>
 
+  <!-- EMQX Connection (advanced) -->
+  <div class="panel" id="emqxPanel">
+    <div class="item"><div class="label">Device</div><div class="value" id="emqxConnected">—</div></div>
+    <div class="item"><div class="label">Connected at</div><div class="value" id="emqxConnectedAt">—</div></div>
+    <div class="item"><div class="label">IP address</div><div class="value" id="emqxIp">—</div></div>
+    <div class="item"><div class="label">Bytes</div><div class="value">sent: <span id="emqxSendOct">-</span>, recv: <span id="emqxRecvOct">-</span></div></div>
+    <div class="item">
+        <button class="label" id="btnEmqxRefresh" disabled>Refresh</button>
+        <div class="value">Checked <span id="emqxLastChecked">—</span></div>
+    </div>
+  </div>
+
   <!-- Status panel -->
   <div class="panel" id="statusPanel" aria-live="polite">
     <div class="item"><div class="label">Battery</div><div class="value" id="sBattery">—</div></div>
@@ -55,11 +67,13 @@
         </label>
       </div>
     </div>
-    <div class="item"><div class="label">Last status</div><div class="value" id="sLast">—</div></div>
+    <div class="item">
+        <button class="label" id="btnStatus" disabled>Refresh</button>
+        <div class="value">Checked <span id="sLast">-</span></div>
+    </div>
   </div>
 
   <div class="grid">
-    <button id="btnStatus" disabled>Refresh status</button>
     <button id="btnEcho" disabled>Echo test</button>
     <button id="btnUp" disabled>Move up</button>
     <button id="btnDown" disabled>Move down</button>
