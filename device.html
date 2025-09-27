@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AutoFlag Device</title>
+  <style>
+    :root { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    body { margin: 24px; max-width: 960px; }
+    h1 { margin: 0 0 8px; }
+    .muted { opacity: .75; font-size: 12px; }
+    .grid { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0; }
+    @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+    button { padding: 10px 12px; font-size: 14px; cursor: pointer; }
+    #status { margin: 10px 0; }
+    #topics code { display: inline-block; padding: 2px 4px; background: #f4f4f4; border-radius: 4px; }
+    #log { white-space: pre-wrap; background: #111; color: #eee; padding: 12px; border-radius: 8px; min-height: 220px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <h1>AutoFlag MQTT Console</h1>
+  <div class="muted">
+    Broker: <code>wss://mqtt.dev-proxy.api-autoflag.com/mqtt</code> ·
+    Client ID: <code id="clientId">(pending)</code>
+  </div>
+
+  <div id="status" class="row">
+    <b>Device ID:</b><code id="deviceId">(reading from ?device_id=...)</code>
+  </div>
+
+  <div class="grid">
+    <button id="btnStatus" disabled>Refresh status</button>
+    <button id="btnEcho" disabled>Echo test</button>
+    <button id="btnUp" disabled>Move up</button>
+    <button id="btnDown" disabled>Move down</button>
+    <button id="btnStop" disabled>Stop moving</button>
+    <button id="btnUpper" disabled>Take to upper</button>
+    <button id="btnMid" disabled>Take to mid</button>
+    <button id="btnLower" disabled>Take to lower</button>
+  </div>
+
+  <h3>Console</h3>
+  <pre id="log"></pre>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="device.js"></script>
+</body>
+</html>

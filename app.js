@@ -22,24 +22,21 @@
   const jsonPreview = $('jsonPreview');
 
   function log(line) {
-    const ts = new Date().toISOString().replace('T', ' ').replace('Z', '');
+    const ts = new Intl.DateTimeFormat(undefined, {
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      fractionalSecondDigits: 3, hour12: false
+    }).format(new Date());
     status.textContent += `[${ts}] ${line}\n`;
     status.scrollTop = status.scrollHeight;
   }
 
-  // Cryptographically random 6-digit integer as a string (100000..999999), rejection-sampled to avoid modulo bias.
-  function randomSixDigit() {
-    const range = 900000; // values 0..899999
-    const min   = 100000;
-    const U32_MAX_PLUS_1 = 0x100000000; // 2^32
-    const limit = Math.floor(U32_MAX_PLUS_1 / range) * range; // largest multiple of range
-    const buf = new Uint32Array(1);
-    let r;
-    do {
-      crypto.getRandomValues(buf);
-      r = buf[0];
-    } while (r >= limit);
-    return String((r % range) + min);
+  // Generate ID with 2025 epoch seconds + 3 random alpha chars.
+  function generateID() {
+    const epochSeconds2025 = Math.floor((Date.now() - new Date('2025-01-01T00:00:00Z').getTime()) / 1000);
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
+    let suffix = '';
+    for (let i = 0; i < 3; i++) suffix += chars[Math.floor(Math.random() * chars.length)];
+    return String(epochSeconds2025) + suffix;
   }
 
   function buildPayload() {
@@ -146,7 +143,7 @@
   }
 
   // Initialize defaults
-  id.value = randomSixDigit();
+  id.value = generateID();
   [ssid, pss, id, cou, sta, cit].forEach(el => el.addEventListener('input', refreshPreview));
   cou.addEventListener('change', refreshPreview);
   sta.addEventListener('change', refreshPreview);
