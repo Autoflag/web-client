@@ -13,6 +13,12 @@
   }
   function setStatus(text) { statusEl.textContent = text; }
 
+  // timestamp helper for sorting; invalid dates -> 0
+  function ts(s) {
+    const t = Date.parse(s);
+    return Number.isFinite(t) ? t : 0;
+  }
+
   function parseMetadataFromTopic(topic) {
     // Example: "mqtt_communication/AutoFlag/EFUSE:6478F016.../ID:828713/MQTT_HOST:.../FIRMWARE: v4.0.0-beta.3"
     const parts = String(topic || '').split('/');
@@ -123,7 +129,7 @@
       const base = Array.isArray(root?.data) ? root.data : [];
 
       // Optional: sort by connected desc, then clientid
-      base.sort((a,b) => (Number(b.connected) - Number(a.connected)) || String(a.clientid).localeCompare(String(b.clientid)));
+      base.sort((a, b) => ts(b.connected_at) - ts(a.connected_at));
 
       // Fetch subscriptions with limited concurrency
       const processed = await mapLimit(base, 10, fetchWithSubs);
