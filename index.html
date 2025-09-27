@@ -28,35 +28,20 @@
     TX: <code>99000ae1-42bd-4ca1-9b00-1815c0cc351f</code> ·
     RX: <code>99000ae2-42bd-4ca1-9b00-1815c0cc351f</code>
   </div>
-
-  <div id="controls">
-    <button id="btnConnect">Connect</button>
-    <button id="btnDisconnect" disabled>Disconnect</button>
-    <button id="btnSend" disabled>Send JSON</button>
-    <button id="btnClear">Clear Log</button>
-  </div>
-
+  <br />
   <fieldset>
     <legend>Configuration Payload</legend>
     <div class="grid">
       <div>
-        <label for="ssid">ssid</label>
+        <label for="ssid">WiFi SSID</label>
         <input id="ssid" type="text" value="CBB" autocomplete="off" />
       </div>
       <div>
-        <label for="pss">pss</label>
+        <label for="pss">WiFi Password</label>
         <input id="pss" type="text" value="bbbbbbbbbb" autocomplete="off" />
       </div>
       <div>
-        <label for="id">id</label>
-        <input id="id" type="text" class="mono" autocomplete="off" />
-      </div>
-      <div>
-        <label for="cit">cit</label>
-        <input id="cit" type="text" value="Boise" autocomplete="off" />
-      </div>
-      <div>
-        <label for="cou">cou</label>
+        <label for="cou">Country</label>
         <select id="cou">
           <option value="1" selected>United States</option>
           <option value="124">Canada</option>
@@ -66,7 +51,7 @@
         </select>
       </div>
       <div>
-        <label for="sta">sta</label>
+        <label for="sta">State</label>
         <select id="sta">
           <option value="1" selected>Idaho</option>
           <option value="2">Washington</option>
@@ -75,10 +60,22 @@
           <option value="5">Utah</option>
         </select>
       </div>
+      <div>
+        <label for="cit">City</label>
+        <input id="cit" type="text" value="Boise" autocomplete="off" />
+      </div>
+      <div>
+        <label for="id">Device ID</label>
+        <input id="id" type="text" class="mono" inputmode="numeric" pattern="[0-9]{6}" autocomplete="off" />
+      </div>
     </div>
     <label for="jsonPreview">Preview</label>
     <textarea id="jsonPreview" class="mono" rows="6" spellcheck="false" readonly></textarea>
   </fieldset>
+
+  <div id="controls">
+    <button id="btnSendOnce">Send config to device</button>
+  </div>
 
   <h3>Log</h3>
   <pre id="status"></pre>

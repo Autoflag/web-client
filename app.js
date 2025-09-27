@@ -7,12 +7,9 @@
 
   const enc = new TextEncoder();
   const dec = new TextDecoder();
-
   const $ = (id) => document.getElementById(id);
 
-  const btnConnect = $('btnConnect');
-  const btnDisconnect = $('btnDisconnect');
-  const btnSend = $('btnSend');
+  const btnSendOnce = $('btnSendOnce');
   const btnClear = $('btnClear');
   const status = $('status');
 
@@ -24,54 +21,80 @@
   const cit  = $('cit');
   const jsonPreview = $('jsonPreview');
 
-  /** @type {BluetoothDevice | null} */ let device = null;
-  /** @type {BluetoothRemoteGATTServer | null} */ let server = null;
-  /** @type {BluetoothRemoteGATTCharacteristic | null} */ let txChar = null;
-  /** @type {BluetoothRemoteGATTCharacteristic | null} */ let rxChar = null;
-
   function log(line) {
     const ts = new Date().toISOString().replace('T', ' ').replace('Z', '');
     status.textContent += `[${ts}] ${line}\n`;
     status.scrollTop = status.scrollHeight;
   }
 
-  function setUIConnected(connected) {
-    btnConnect.disabled = connected;
-    btnDisconnect.disabled = !connected;
-    btnSend.disabled = !connected;
-  }
-
-  function defaultUUID() {
-    if (crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-    // Fallback v4-ish
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-      const r = (crypto.getRandomValues(new Uint8Array(1))[0] & 15) >>> 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
+  // Cryptographically random 6-digit integer as a string (100000..999999), rejection-sampled to avoid modulo bias.
+  function randomSixDigit() {
+    const range = 900000; // values 0..899999
+    const min   = 100000;
+    const U32_MAX_PLUS_1 = 0x100000000; // 2^32
+    const limit = Math.floor(U32_MAX_PLUS_1 / range) * range; // largest multiple of range
+    const buf = new Uint32Array(1);
+    let r;
+    do {
+      crypto.getRandomValues(buf);
+      r = buf[0];
+    } while (r >= limit);
+    return String((r % range) + min);
   }
 
   function buildPayload() {
-    const payload = {
+    return {
       ssid: ssid.value,
       pss:  pss.value,
-      id:   id.value,
       cou:  parseInt(cou.value, 10),
       sta:  parseInt(sta.value, 10),
-      cit:  cit.value
+      cit:  cit.value,
+      id:   id.value,
     };
-    return payload;
   }
 
   function refreshPreview() {
     jsonPreview.value = JSON.stringify(buildPayload());
   }
 
-  async function connectFlow() {
+  // Attach notification handler; return an off() function to remove it.
+  function onTxAttach(txChar) {
+    const handler = (ev) => {
+      const dv = /** @type {DataView} */ (ev.target.value);
+      // Decode only the bytes in this notification.
+      const bytes = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+      const text = dec.decode(bytes);
+      let statusDescription = '';
+      if (text === '1') {
+        statusDescription = ' (Device ACKed payload)';
+      } else if (text === '2') {
+        statusDescription = ' (Device configured successfully with payload)';
+      } else if (text === '3') {
+        statusDescription = ' (Device failed to configure with payload)';
+      }
+      log(`RX from device: ${JSON.stringify(text)}` + statusDescription);
+    };
+    txChar.addEventListener('characteristicvaluechanged', handler);
+    return () => txChar.removeEventListener('characteristicvaluechanged', handler);
+  }
+
+  async function sendOnceFlow() {
     if (!('bluetooth' in navigator)) {
       log('Web Bluetooth not supported in this browser.');
       return;
     }
+
+    // Build and validate payload before prompting.
+    const payload = buildPayload();
+    try { JSON.parse(JSON.stringify(payload)); } catch (err) {
+      log(`Invalid payload: ${String(err)}`);
+      return;
+    }
+
+    btnSendOnce.disabled = true;
+
+    /** @type {BluetoothDevice | null} */ let device = null;
+
     try {
       device = await navigator.bluetooth.requestDevice({
         filters: [
@@ -81,80 +104,55 @@
         optionalServices: [SERVICE_UUID]
       });
 
-      device.addEventListener('gattserverdisconnected', onDisconnected);
-
       log(`Selected device: ${device.name || '(unnamed)'} (${device.id})`);
-      server = await device.gatt.connect();
+      const server = await device.gatt.connect();
       log('GATT connected.');
 
       const svc = await server.getPrimaryService(SERVICE_UUID);
 
-      txChar = await svc.getCharacteristic(TX_CHAR_UUID);
+      // Subscribe first; keep logging until the device disconnects.
+      const txChar = await svc.getCharacteristic(TX_CHAR_UUID);
       await txChar.startNotifications();
-      txChar.addEventListener('characteristicvaluechanged', onTxNotification);
-      log('Subscribed to TX indications/notifications.');
+      const offTx = onTxAttach(txChar);
+      log('Subscribed to TX indications/notifications. Logging until device disconnects...');
 
-      rxChar = await svc.getCharacteristic(RX_CHAR_UUID);
-      log('RX characteristic ready for writes.');
+      // Promise resolves when the device closes the connection.
+      const disconnected = new Promise((resolve) => {
+        const onDisc = () => {
+          log('GATT disconnected by device.');
+          offTx();
+          resolve();
+        };
+        device.addEventListener('gattserverdisconnected', onDisc, { once: true });
+      });
 
-      setUIConnected(true);
+      // Write the payload after subscription is active.
+      const rxChar = await svc.getCharacteristic(RX_CHAR_UUID);
+      const bytes = enc.encode(JSON.stringify(payload));
+      await rxChar.writeValue(bytes);
+      log(`Sent to device (${bytes.byteLength} bytes).`);
+
+      // Block until the device ends the session.
+      await disconnected;
+
+      // No explicit disconnect/stopNotifications: peripheral controls session length.
+      log('Flow complete.');
     } catch (err) {
-      log(`Connect error: ${String(err)}`);
-      await safeDisconnect();
-    }
-  }
-
-  function onTxNotification(ev) {
-    const value = /** @type {DataView} */ (ev.target.value);
-    const text = dec.decode(value.buffer);
-    // ESP32 sends integer strings like "1", "2", "3"
-    log(`RX from device: ${JSON.stringify(text)}`);
-  }
-
-  async function sendJson() {
-    if (!rxChar) { log('Not connected.'); return; }
-    try {
-      const payload = buildPayload();
-      // Validate locally
-      JSON.parse(JSON.stringify(payload));
-      const data = enc.encode(JSON.stringify(payload));
-      await rxChar.writeValue(data);
-      log(`Sent to device (${data.byteLength} bytes).`);
-    } catch (err) {
-      log(`Send error: ${String(err)}`);
-    }
-  }
-
-  async function safeDisconnect() {
-    try {
-      if (txChar) {
-        try { await txChar.stopNotifications(); } catch {}
-        txChar.removeEventListener('characteristicvaluechanged', onTxNotification);
-      }
-      txChar = null;
-      rxChar = null;
-      if (device?.gatt?.connected) device.gatt.disconnect();
+      log(`Flow error: ${String(err)}`);
+      try { if (device?.gatt?.connected) device.gatt.disconnect(); } catch {}
     } finally {
-      setUIConnected(false);
-      log('Disconnected.');
+      btnSendOnce.disabled = false;
     }
-  }
-
-  function onDisconnected() {
-    setUIConnected(false);
-    log('GATT disconnected by remote.');
   }
 
   // Initialize defaults
-  id.value = defaultUUID();
+  id.value = randomSixDigit();
   [ssid, pss, id, cou, sta, cit].forEach(el => el.addEventListener('input', refreshPreview));
   cou.addEventListener('change', refreshPreview);
   sta.addEventListener('change', refreshPreview);
   refreshPreview();
 
   // Wire UI
-  btnConnect.addEventListener('click', connectFlow);
-  btnDisconnect.addEventListener('click', safeDisconnect);
-  btnSend.addEventListener('click', sendJson);
-  btnClear.addEventListener('click', () => { status.textContent = ''; });
+  btnSendOnce?.addEventListener('click', sendOnceFlow);
+  btnClear?.addEventListener('click', () => { status.textContent = ''; });
 })();
