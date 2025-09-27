@@ -51,9 +51,17 @@
       hour: '2-digit', minute: '2-digit', second: '2-digit',
       fractionalSecondDigits: 3, hour12: false
     }).format(new Date());
-    logEl.textContent += `[${ts}] ${line}\n`;
-    const stick = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 2;
-    if (stick) logEl.scrollTop = logEl.scrollHeight;
+
+    // Are we currently at (or near) the bottom?
+    const atBottom = (logEl.scrollTop + logEl.clientHeight) >= (logEl.scrollHeight - 2);
+
+    // Append without resetting the whole text node
+    logEl.insertAdjacentText('beforeend', `[${ts}] ${line}\n`);
+
+    // If we were at bottom, keep it pinned after the DOM updates
+    if (atBottom) requestAnimationFrame(() => {
+      logEl.scrollTop = logEl.scrollHeight;
+    });
   }
 
   function setButtonsEnabled(yes) {
