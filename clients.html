@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EMQX Clients</title>
+  <style>
+    :root { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    html, body { height: 100%; }
+    body { margin: 24px; max-width: 1024px; }
+    h1 { margin: 0 0 12px; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 8px 0 16px; }
+    .muted { opacity: .75; font-size: 12px; }
+    button { padding: 8px 12px; font-size: 14px; cursor: pointer; }
+    #status { font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { text-align: left; font-weight: 600; border-bottom: 1px solid #e5e7eb; padding: 8px; }
+    tbody td { padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 14px; vertical-align: top; }
+    tbody tr:hover { background: #fafafa; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .chip { display:inline-block; padding: 2px 6px; border-radius: 9999px; font-size: 12px; line-height: 1.4; }
+    .chip.on { background:#e6ffef; color:#166534; border:1px solid #bbf7d0; }
+    .chip.off { background:#fee2e2; color:#7f1d1d; border:1px solid #fecaca; }
+    .right { margin-left: auto; }
+    a { color: #0b6bcb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>EMQX Clients</h1>
+
+  <div class="row">
+    <span id="status" class="muted"></span>
+    <button id="refresh" class="right">Refresh</button>
+  </div>
+
+  <table aria-label="Clients">
+    <thead>
+      <tr>
+        <th style="width:28%">Client ID</th>
+        <th style="width:10%">Connected</th>
+        <th style="width:24%">Connected at</th>
+        <th style="width:16%">IP address</th>
+        <th style="width:11%">EFUSE</th>
+        <th style="width:11%">Firmware</th>
+      </tr>
+    </thead>
+    <tbody id="rows">
+      <tr><td colspan="6" class="muted">Loading…</td></tr>
+    </tbody>
+  </table>
+
+  <script src="clients.js"></script>
+</body>
+</html>
