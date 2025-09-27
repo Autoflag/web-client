@@ -14,18 +14,30 @@
     @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
     button { padding: 10px 12px; font-size: 14px; cursor: pointer; }
-    #status { margin: 10px 0; }
     #topics code { display: inline-block; padding: 2px 4px; background: #f4f4f4; border-radius: 4px; }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
     /* Status panel */
     .panel { background: #f9fafb; border: 1px solid #eee; border-radius: 10px; padding: 12px; margin-top: 10px; }
-    .panel .item { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+    .panel .item { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
     .panel .label { min-width: 140px; font-weight: 600; opacity: .8; }
     .panel .value { font-variant-numeric: tabular-nums; }
     .panel .fine { opacity: .7; font-size: 12px; }
+    button.label { padding: 5px 0px; }
 
-    /* Console grows and scrolls */
+    /* Control sections */
+    .controls { margin: 12px 0; }
+    .group { display: flex; gap: 8px; }
+    .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+    @media (max-width: 560px) { .split { grid-template-columns: 1fr; } }
+    /* Vertical button stacks inside each set */
+    .group.vertical{ display:flex; flex-direction:column; gap:8px; align-items:stretch; }
+
+    /* Console */
+    .console-header { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+    .console-header h3 { margin: 0; }
+    .console-header .push-right { margin-left: auto; }
+
     .console-wrap { display: flex; flex-direction: column; max-height: 500px; }
     #log { white-space: pre-wrap; background: #111; color: #eee; padding: 12px; border-radius: 8px; min-height: 220px; flex: 1; min-height: 0; overflow: auto; }
   </style>
@@ -33,12 +45,8 @@
 <body>
   <h1>AutoFlag MQTT Console</h1>
   <div class="muted">
-    Broker: <code>wss://mqtt.dev-proxy.api-autoflag.com/mqtt</code> ·
+    <b>Device ID: </b><code id="deviceId">(reading from ?device_id=...)</code> · 
     Client ID: <code id="clientId">(pending)</code>
-  </div>
-
-  <div id="status" class="row">
-    <b>Device ID:</b><code id="deviceId">(reading from ?device_id=...)</code>
   </div>
 
   <!-- EMQX Connection (advanced) -->
@@ -48,8 +56,8 @@
     <div class="item"><div class="label">IP address</div><div class="value" id="emqxIp">—</div></div>
     <div class="item"><div class="label">Bytes</div><div class="value">sent: <span id="emqxSendOct">-</span>, recv: <span id="emqxRecvOct">-</span></div></div>
     <div class="item">
-        <button class="label" id="btnEmqxRefresh" disabled>Refresh</button>
-        <div class="value">Checked <span id="emqxLastChecked">—</span></div>
+      <button class="label" id="btnEmqxRefresh" disabled>Refresh</button>
+      <div class="value">Checked <span id="emqxLastChecked">—</span></div>
     </div>
   </div>
 
@@ -68,22 +76,32 @@
       </div>
     </div>
     <div class="item">
-        <button class="label" id="btnStatus" disabled>Refresh</button>
-        <div class="value">Checked <span id="sLast">-</span></div>
+      <button class="label" id="btnStatus" disabled>Refresh</button>
+      <div class="value">Checked <span id="sLast">-</span></div>
     </div>
   </div>
 
-  <div class="grid">
-    <button id="btnEcho" disabled>Echo test</button>
-    <button id="btnUp" disabled>Move up</button>
-    <button id="btnDown" disabled>Move down</button>
-    <button id="btnStop" disabled>Stop moving</button>
-    <button id="btnUpper" disabled>Take to upper</button>
-    <button id="btnMid" disabled>Take to mid</button>
-    <button id="btnLower" disabled>Take to lower</button>
+  <!-- Controls -->
+  <div class="controls">
+    <div class="split">
+      <div class="row group vertical" aria-label="Go to position">
+        <button id="btnUpper" disabled>⏫ Upper</button>
+        <button id="btnMid" disabled>↕️ Mid</button>
+        <button id="btnLower" disabled>⏬ Lower</button>
+      </div>
+      <div class="row group vertical" aria-label="Move">
+        <button id="btnUp" disabled>⬆️ Up</button>
+        <button id="btnStop" disabled>⏹️ Stop</button>
+        <button id="btnDown" disabled>🔽 Down</button>
+      </div>
+    </div>
   </div>
 
-  <h3>Console</h3>
+  <!-- Console header with Echo button on the right -->
+  <div class="console-header">
+    <h3>Console</h3>
+    <button id="btnEcho" class="push-right" disabled>Echo test</button>
+  </div>
   <div class="console-wrap"><pre id="log"></pre></div>
 
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
