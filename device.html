@@ -33,6 +33,7 @@
     @media (max-width: 560px) { .split { grid-template-columns: 1fr; } }
     /* Vertical button stacks inside each set */
     .group.vertical{ display:flex; flex-direction:column; gap:8px; align-items:stretch; }
+    .control-set { background: #f9fafb; border: 1px solid #eee; border-radius: 10px; padding: 12px;}
 
     /* Console */
     .console-header { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
@@ -88,16 +89,18 @@
   <!-- Controls -->
   <div class="controls">
     <div class="split">
-      <div class="row group vertical" aria-label="Go to position">
+      <fieldset class="control-set row group vertical" aria-label="Go to position">
+        <legend>Position</legend>
         <button id="btnUpper" disabled>⏫ Upper</button>
         <button id="btnMid" disabled>↕️ Mid</button>
         <button id="btnLower" disabled>⏬ Lower</button>
-      </div>
-      <div class="row group vertical" aria-label="Move">
+      </fieldset>
+      <fieldset class="control-set row group vertical" aria-label="Move">
+        <legend>Manual Control</legend>
         <button id="btnUp" disabled>⬆️ Up</button>
         <button id="btnStop" disabled>⏸️ Stop</button>
         <button id="btnDown" disabled>⬇️ Down</button>
-      </div>
+      </fieldset>
     </div>
   </div>
 
