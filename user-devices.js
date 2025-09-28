@@ -57,26 +57,8 @@
     return el;
   }
 
-  // Supports both the simplified shape provided and Strapi's default shape
-  function normalize(item) {
-    // If it already matches the provided type
-    if (item && 'deviceId' in item) return item;
-
-    const a = item?.attributes || item || {};
-    const countryShort = a.deviceCountry?.data?.attributes?.short_name || a.deviceCountry?.short_name || null;
-    const stateShort   = a.deviceState?.data?.attributes?.short_name || a.deviceState?.short_name || null;
-
-    return {
-      deviceId: a.deviceId || a.device_id || a.id || item?.id || '',
-      deviceName: a.deviceName || a.name || '',
-      deviceCountry: countryShort ? { short_name: countryShort } : null,
-      deviceState: stateShort ? { short_name: stateShort } : null,
-      deviceCity: a.deviceCity || a.city || '',
-    };
-  }
-
   async function fetchDevices(jwt, userId) {
-    const url = `${API_BASE}/api/auto-flag-devices?filters[users_permissions_users][$eq]=${encodeURIComponent(userId)}&populate=deviceCountry&populate=deviceState`;
+    const url = `${API_BASE}/api/auto-flag-devices?filters[users_permissions_users][$eq]=${encodeURIComponent(userId)}`;
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${jwt}` } });
     if (res.status === 401 || res.status === 403) {
       const next = encodeURIComponent(location.pathname.replace(/^\/+/, ''));
@@ -86,7 +68,7 @@
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     const json = await res.json();
     const arr = Array.isArray(json?.data) ? json.data : [];
-    return arr.map(normalize);
+    return arr;
   }
 
   // --- EMQX connected snapshot (404 => offline) ---

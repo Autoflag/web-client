@@ -23,6 +23,8 @@
   const btnEmqxRefresh  = $('btnEmqxRefresh');
   const emqxEfuse       = $('emqxEfuse');
   const emqxFirmware    = $('emqxFirmware');
+  const deviceNameEl    = $('deviceName');
+  const deviceLocationEl = $('deviceLocation');
 
   const btns = {
     status: $('btnStatus'),
@@ -154,6 +156,27 @@
     return null;
   }
   fetchEmqxClientMetadataTopic();
+
+  async function getApiDeviceInfo() {
+    try { 
+      const userAuthData = JSON.parse(localStorage.getItem('autoflag.auth') || 'null'); 
+      const res = await fetch(`https://api.autoflagraiser.com/api/auto-flag-devices`, { headers: {
+        'Authorization': `Bearer ${userAuthData?.jwt}`
+      }});
+      const jsonResult = await res.json();
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      const arr = Array.isArray(jsonResult?.data) ? jsonResult.data : [];
+      const d = arr.find(d => d.deviceId === DEVICE_ID);
+      if (d?.deviceName) {
+        deviceNameEl.textContent = d.deviceName;
+        document.title = `AutoFlag: ${d.deviceName}`;
+        deviceLocationEl.textContent = `${d.deviceCountry?.short_name}, ${d.deviceState?.short_name}, ${d.deviceCity}`;
+      }
+    } catch (error) {
+      console.error('API device info fetch error', error);
+    }
+  }
+  getApiDeviceInfo();
 
   // Connect
   const connectUrl = 'wss://mqtt.dev-proxy.api-autoflag.com/mqtt';
