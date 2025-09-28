@@ -20,12 +20,19 @@
     .name { font-weight: 600; }
     .meta { font-size: 13px; opacity: .8; margin-top: 2px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      /* Status chips */
+    .statusline { display:flex; gap:8px; margin-top:4px; font-size:13px; align-items:center; }
+    .chip { display:inline-flex; gap:6px; align-items:center; padding: 2px 8px; border-radius: 9999px; border:1px solid #e5e7eb; background:#fff; }
+    .chip.ok { background:#e6ffef; color:#166534; border-color:#bbf7d0; }
+    .chip.bad { background:#fee2e2; color:#7f1d1d; border-color:#fecaca; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   </style>
 </head>
 <body>
   <h1>Your devices</h1>
 
   <div class="row">
+    <div class="muted">Source: <code>GET /api/auto-flag-devices?filters[users_permissions_users][$eq]=&lt;userId&gt;&amp;populate=deviceCountry&amp;populate=deviceState</code></div>
     <span id="status" class="muted"></span>
     <button id="refresh" class="right">Refresh</button>
   </div>
@@ -34,6 +41,7 @@
     <div class="muted">Loading…</div>
   </div>
 
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="user-devices.js"></script>
 </body>
 </html>
