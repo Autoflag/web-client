@@ -89,23 +89,46 @@
     return arr.map(normalize);
   }
 
-  // --- EMQX connected snapshot (treat 404 as offline) ---
-  async function fetchConnected(deviceId) {
-    try {
-      const res = await fetch(`${EMQX_BASE}/clients/${encodeURIComponent(deviceId)}`);
-      if (res.status === 404) return false; // not connected
-      if (!res.ok) return null;             // unknown
-      const data = await res.json();
-      return !!data?.connected;
-    } catch { return null; }
-  }
-
+  // --- EMQX connected snapshot (404 => offline) ---
   function updateOnlineChip(card, online) {
     const el = card.querySelector('[data-k="online"]');
     if (!el) return;
     if (online === true) { el.textContent = 'Online'; el.classList.add('ok'); el.classList.remove('bad'); }
     else if (online === false) { el.textContent = 'Offline'; el.classList.add('bad'); el.classList.remove('ok'); }
     else { el.textContent = '—'; el.classList.remove('ok','bad'); }
+  }
+
+  // Batch poller: GET /clients?clientid=...&clientid=...
+  let onlinePollTimer = null;
+  async function pollEmqxOnline() {
+    const ids = Array.from(knownCards.keys());
+    if (ids.length === 0) return;
+
+    const p = new URLSearchParams({ limit: '1000', fields: 'clientid,connected' });
+    ids.forEach(id => p.append('clientid', id));
+
+    try {
+      const res = await fetch(`${EMQX_BASE}/clients?` + p.toString());
+      if (!res.ok) return;
+      const js = await res.json();
+      const arr = Array.isArray(js?.data) ? js.data : [];
+      const map = new Map(arr.map(c => [c.clientid, !!c.connected]));
+      // Missing IDs => offline
+      for (const id of ids) {
+        const card = knownCards.get(id);
+        if (!card) continue;
+        const online = map.has(id) ? map.get(id) : false;
+        updateOnlineChip(card, online);
+      }
+    } catch {}
+  }
+  function startOnlinePolling() {
+    stopOnlinePolling();
+    pollEmqxOnline();
+    onlinePollTimer = setInterval(pollEmqxOnline, 5000);
+  }
+  function stopOnlinePolling() {
+    if (onlinePollTimer) { clearInterval(onlinePollTimer); onlinePollTimer = null; }
   }
 
   function updateMqttStatus(card, statusObj) {
@@ -177,6 +200,8 @@
     if (!ctx) return;
     const { jwt, userId } = ctx;
 
+    stopOnlinePolling();
+
     setStatus('Loading…');
     btn.disabled = true;
     listEl.innerHTML = '<div class="muted">Loading…</div>';
@@ -187,12 +212,13 @@
         listEl.innerHTML = '<div class="muted">No devices.</div>';
       } else {
         listEl.innerHTML = '';
+        knownCards.clear();
         for (const d of list) {
           const card = deviceCard(d);
           listEl.appendChild(card);
-          trackDevice(d.deviceId, card);            // subscribe + request STATUS immediately
-          fetchConnected(d.deviceId).then((online) => updateOnlineChip(card, online)); // 404 => offline
+          trackDevice(d.deviceId, card);
         }
+        startOnlinePolling();
       }
       setStatus(`Loaded ${list.length} device(s) · ${new Date().toLocaleTimeString()}`);
     } catch (err) {
@@ -204,5 +230,6 @@
   }
 
   btn.addEventListener('click', load);
+  window.addEventListener('beforeunload', stopOnlinePolling);
   load();
 })();
