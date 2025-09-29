@@ -226,9 +226,9 @@
 
     // Flag position
     const posText = (
-      fpos === 1 ? '⬆️  Top' :
+      fpos === 1 ? '⏫  Upper' :
       fpos === 2 ? '↕️  Mid' :
-      fpos === 3 ? '⬇️  Bottom' :
+      fpos === 3 ? '⏬  Lower' :
       '❔ Unknown'
     );
     sFlag.textContent = posText;
