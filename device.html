@@ -20,11 +20,15 @@
     /* Status panel */
     .panel { background: #f9fafb; border: 1px solid #eee; border-radius: 10px; padding: 12px; margin-top: 10px; }
     .panel .item { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
-    .panel .label { min-width: 140px; font-weight: 600; opacity: .8; }
+    .panel .label { min-width: 140px; opacity: .8; }
     .panel .value { font-variant-numeric: tabular-nums; }
     .panel .fine { opacity: .7; font-size: 12px; }
     button.label { padding: 5px 0px; }
     .item[hidden] { display: none !important; }
+    .status-panel-legend { width: 100%; display: flex; padding: 0; align-items: center; }
+    .legend-status { margin-left: auto; padding-right: 10px; }
+    .refresh-btn { height: 35px; min-width: 35px !important; color:green; display: flex; flex-direction: column; justify-content: center; font-size: 20px; }
+    .disable-text { color: gray; }
 
     /* Control sections */
     .controls { margin: 12px 0; }
@@ -53,21 +57,27 @@
   </div>
 
   <!-- EMQX Connection (advanced) -->
-  <div class="panel" id="emqxPanel">
+  <fieldset class="panel" id="emqxPanel">
+    <legend class="status-panel-legend">
+      <b>Connection</b>
+      <span class="legend-status" id="emqxLastChecked">-</span>
+      <button class="label refresh-btn" id="btnEmqxRefresh" disabled>↻</button>
+    </legend>
     <div class="item"><div class="label">Device</div><div class="value" id="emqxConnected">—</div></div>
     <div class="item"><div class="label">Connected at</div><div class="value" id="emqxConnectedAt">—</div></div>
     <div class="item"><div class="label">IP address</div><div class="value" id="emqxIp">—</div></div>
     <div class="item"><div class="label">Bytes</div><div class="value">sent: <span id="emqxSendOct">-</span>, recv: <span id="emqxRecvOct">-</span></div></div>
     <div class="item" hidden><div class="label">Efuse</div><div class="value" id="emqxEfuse">—</div></div>
     <div class="item" hidden><div class="label">Firmware</div><div class="value" id="emqxFirmware">—</div></div>
-    <div class="item">
-      <button class="label" id="btnEmqxRefresh" disabled>Refresh</button>
-      <div class="value">Checked <span id="emqxLastChecked">—</span></div>
-    </div>
-  </div>
+  </fieldset>
 
   <!-- Status panel -->
-  <div class="panel" id="statusPanel" aria-live="polite">
+  <fieldset class="panel" id="statusPanel" aria-live="polite">
+    <legend class="status-panel-legend">
+      <b>Status</b>
+      <span class="legend-status" id="sLast">-</span>
+      <button class="label refresh-btn" id="btnStatus" disabled>↻</button>
+    </legend>
     <div class="item"><div class="label">Battery</div><div class="value" id="sBattery">—</div></div>
     <div class="item"><div class="label">Flag position</div><div class="value" id="sFlag">—</div></div>
     <div class="item"><div class="label">Calibration</div><div class="value" id="sCal">—</div></div>
@@ -80,23 +90,19 @@
         </label>
       </div>
     </div>
-    <div class="item">
-      <button class="label" id="btnStatus" disabled>Refresh</button>
-      <div class="value">Checked <span id="sLast">-</span></div>
-    </div>
-  </div>
+  </fieldset>
 
   <!-- Controls -->
   <div class="controls">
     <div class="split">
       <fieldset class="control-set row group vertical" aria-label="Go to position">
-        <legend>Position</legend>
+        <legend><b>Position</b></legend>
         <button id="btnUpper" disabled>⏫ Upper</button>
         <button id="btnMid" disabled>↕️ Mid</button>
         <button id="btnLower" disabled>⏬ Lower</button>
       </fieldset>
       <fieldset class="control-set row group vertical" aria-label="Move">
-        <legend>Manual Control</legend>
+        <legend><b>Manual Control</b></legend>
         <button id="btnUp" disabled>⬆️ Up</button>
         <button id="btnStop" disabled>⏸️ Stop</button>
         <button id="btnDown" disabled>⬇️ Down</button>

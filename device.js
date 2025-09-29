@@ -25,6 +25,8 @@
   const emqxFirmware    = $('emqxFirmware');
   const deviceNameEl    = $('deviceName');
   const deviceLocationEl = $('deviceLocation');
+  const emqxPanelEl     = $('emqxPanel');
+  const statusPanelEl   = $('statusPanel');
 
   const btns = {
     status: $('btnStatus'),
@@ -77,8 +79,8 @@
   function fmtTime(d) {
     try {
       return new Intl.DateTimeFormat(undefined, {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric'
       }).format(d);
     } catch { return d.toLocaleString(); }
   }
@@ -101,7 +103,7 @@
     emqxIp.textContent          = info.ip_address || '—';
     emqxRecvOct.textContent     = Number.isFinite(info.recv_oct) ? String(info.recv_oct) : (info.recv_oct ?? '—');
     emqxSendOct.textContent     = Number.isFinite(info.send_oct) ? String(info.send_oct) : (info.send_oct ?? '—');
-    emqxLastChecked.textContent = new Date().toLocaleString();
+    emqxLastChecked.textContent = fmtTime(new Date());
   }
   async function fetchEmqxClient() {
     const url = `https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(DEVICE_ID)}`;
@@ -119,6 +121,7 @@
       return null;
     } finally {
       btnEmqxRefresh.disabled = false;
+      emqxPanelEl.classList.remove('disable-text');
     }
   }
   fetchEmqxClient();
@@ -245,6 +248,7 @@
       setButtonsEnabled(true);
       chkMaint.disabled = false; // allow toggling
     }
+    statusPanelEl.classList.remove('disable-text');
   }
 
   function publish(payload) {
@@ -317,7 +321,10 @@
   // Buttons
   let lastMsgNumber = 0;
 
-  btns.status.addEventListener('click', () => publish('STATUS'));
+  btns.status.addEventListener('click', () => {
+    statusPanelEl.classList.add('disable-text');
+    publish('STATUS');
+  });
   btns.echo.addEventListener('click', () => {
     lastMsgNumber += 1;
     publish({ echoTest: true, correlationId: crypto.randomUUID(), msgNumber: lastMsgNumber });
@@ -340,6 +347,7 @@
 
   // EMQX refresh button
   btnEmqxRefresh.addEventListener('click', () => {
+    emqxPanelEl.classList.add('disable-text');
     fetchEmqxClient();
     fetchEmqxClientMetadataTopic();
   });
