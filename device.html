@@ -8,7 +8,7 @@
     :root { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
     html, body { height: 100%; }
     body { margin: 24px; max-width: 960px; display: flex; flex-direction: column; }
-    h1 { margin: 0 0 8px; }
+    h2 { margin: 0 0 8px; }
     .muted { opacity: .75; font-size: 12px; }
     .grid { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0; }
     @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
@@ -49,7 +49,7 @@
   </style>
 </head>
 <body>
-  <h1>AutoFlag: <span id="deviceName">(...)</span></h1>
+  <h2>AutoFlag: <span id="deviceName">(...)</span></h2>
   <div class="muted">
     <span id="deviceLocation"></span> · 
     <b>Device ID: </b><code id="deviceId">(reading from ?device_id=...)</code> · 
