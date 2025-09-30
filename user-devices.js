@@ -18,6 +18,7 @@
   const listEl = $('#list');
   const statusEl = $('#status');
   const btn = $('#refresh');
+  const addBtn = $('#add');
 
   function setStatus(text) { statusEl.textContent = text; }
 
@@ -58,7 +59,8 @@
   }
 
   async function fetchDevices(jwt, userId) {
-    const url = `${API_BASE}/api/auto-flag-devices?filters[users_permissions_users][$eq]=${encodeURIComponent(userId)}`;
+    const url = new URL(`${API_BASE}/api/auto-flag-devices`);
+    url.searchParams.set('filters[users_permissions_users][$eq]', userId);
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${jwt}` } });
     if (res.status === 401 || res.status === 403) {
       const next = encodeURIComponent(location.pathname.replace(/^\/+/, ''));
@@ -212,6 +214,7 @@
   }
 
   btn.addEventListener('click', load);
+  addBtn.addEventListener('click', () => { location.href = 'index.html'; });
   window.addEventListener('beforeunload', stopOnlinePolling);
   load();
 })();

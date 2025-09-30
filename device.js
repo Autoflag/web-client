@@ -1,6 +1,9 @@
 // AutoFlag MQTT Console (browser)
 
 (() => {
+  const STORAGE_KEY = 'autoflag.auth';
+  const API_BASE = 'https://api.autoflagraiser.com';
+
   const $ = (id) => document.getElementById(id);
   const logEl = $('log');
   const deviceIdEl = $('deviceId');
@@ -106,7 +109,7 @@
     emqxLastChecked.textContent = fmtTime(new Date());
   }
   async function fetchEmqxClient() {
-    const url = `https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(DEVICE_ID)}`;
+    const url = new URL(`https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(DEVICE_ID)}`);
     try {
       const res = await fetch(url, { method: 'GET' });
       if (!res.ok) {
@@ -127,7 +130,7 @@
   fetchEmqxClient();
 
   async function fetchEmqxClientMetadataTopic() {
-    const url = `https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(DEVICE_ID)}/subscriptions`;
+    const url = new URL(`https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(DEVICE_ID)}/subscriptions`);
     try {
       const res = await fetch(url, { method: 'GET' });
       if (!res.ok) {
@@ -161,11 +164,11 @@
   fetchEmqxClientMetadataTopic();
 
   async function getApiDeviceInfo() {
-    try { 
-      const userAuthData = JSON.parse(localStorage.getItem('autoflag.auth') || 'null'); 
-      const res = await fetch(`https://api.autoflagraiser.com/api/auto-flag-devices`, { headers: {
-        'Authorization': `Bearer ${userAuthData?.jwt}`
-      }});
+    try {
+      const userAuthData = JSON.parse(localStorage.getItem(STORAGE_KEY)); 
+      const url = new URL(`${API_BASE}/api/auto-flag-devices`);
+      url.searchParams.set('filters[users_permissions_users][$eq]', userAuthData.user.id);
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${userAuthData.jwt}` }});
       const jsonResult = await res.json();
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const arr = Array.isArray(jsonResult?.data) ? jsonResult.data : [];

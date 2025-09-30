@@ -181,7 +181,8 @@
       };
       const bytes = enc.encode(JSON.stringify(blePayload));
       await rxChar.writeValue(bytes);
-      log(`Sent to device (${bytes.byteLength} bytes).`);
+      log(`Sent config to device (${bytes.byteLength} bytes):`);
+      log(JSON.stringify(blePayload));
 
       // Block until the device ends the session.
       await disconnected;
@@ -191,6 +192,17 @@
 
       // Register the device to the user.
       await registerDeviceToUser(payload);
+
+      // Wait for device to connect to EMQX broker.
+      log('Waiting for device to connect to MQTT broker...');
+      const emqxConnected = await waitForEmqxClientConnection(payload.id, 60_000);
+      if (!emqxConnected) {
+        throw new Error('Timeout waiting for device to connect to MQTT broker.');
+      }
+
+      // Navigate to the device page for this device.
+      log('Redirecting to device page...');
+      location.href = `device.html?device_id=${encodeURIComponent(payload.id)}`;
     } catch (err) {
       log(`Flow error: ${String(err)}`);
       try { if (device?.gatt?.connected) device.gatt.disconnect(); } catch {}
@@ -236,8 +248,27 @@
       throw new Error(`API error registering device for user: ${resp.status} ${resp.statusText}: ${errText}`);
     }
     const respData = await resp.json();
+    // returns device_id as JSON literal string, e.g. "68db5f3bf69ba4df2fd77896""
     console.log('API response data:', respData);
     log('Device registered to user successfully.');
+  }
+
+  async function waitForEmqxClientConnection(deviceId, timeout) {
+    const start = Date.now();
+    const url = new URL(`https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(deviceId)}`);
+    while (Date.now() - start < timeout) {
+      try {
+        const res = await fetch(url, { method: 'GET', cache: 'no-store'});
+        if (!res.ok) {
+          throw new Error(`${res.status} ${res.statusText}`);
+        }
+        return true;
+      } catch {
+        await new Promise(r => setTimeout(r, 250));
+        continue;
+      }
+    }
+    return false;
   }
 
   // Initialize defaults
