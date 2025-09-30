@@ -26,13 +26,17 @@
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch { return null; }
   }
 
+  function navigateToLogin() {
+    const next = location.pathname + location.search + location.hash;
+    location.replace(`login.html?next=${encodeURIComponent(next)}`);
+  }
+
   function requireAuthOrRedirect() {
     const auth = readAuth();
     const jwt = auth?.jwt;
     const userId = auth?.user?.id;
     if (!jwt || !userId) {
-      const next = encodeURIComponent(location.pathname.replace(/^\/+/, ''));
-      location.replace(`login.html?next=${next}`);
+      navigateToLogin();
       return null;
     }
     return { auth, jwt, userId };
@@ -59,18 +63,46 @@
   }
 
   async function fetchDevices(jwt, userId) {
-    const url = new URL(`${API_BASE}/api/auto-flag-devices`);
-    url.searchParams.set('filters[users_permissions_users][$eq]', userId);
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${jwt}` } });
-    if (res.status === 401 || res.status === 403) {
-      const next = encodeURIComponent(location.pathname.replace(/^\/+/, ''));
-      location.replace(`login.html?next=${next}`);
-      return [];
+    // Fetch all pages, the max page limit is 200
+    const MAX_PAGE_LIMIT = 200;
+    const allDevices = [];
+    for (let i = 1; i < Infinity; i++) {
+      const reqBody = {
+        pagination: { page: i, limit: MAX_PAGE_LIMIT },
+        sort: { field: 'deviceName', sortOrder: 1 },
+        filters: {
+          deviceName: { value: null },
+          organizationId: { value: null },
+          deviceId: { value: null },
+          deviceCountry: { value: null },
+          deviceState: { value: null }
+        }
+      };
+
+      const url = new URL(`${API_BASE}/flagDevice/list`);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${jwt}`,
+          'Cache-Control': 'no-cache',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reqBody)
+      });
+      if (res.status === 401 || res.status === 403) {
+        navigateToLogin();
+        return [];
+      }
+
+      const json = await res.json();
+      if (!Array.isArray(json?.docs) || json.docs.length === 0) {
+        break;
+      }
+      allDevices.push(...json.docs);
     }
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    const json = await res.json();
-    const arr = Array.isArray(json?.data) ? json.data : [];
-    return arr;
+    // Filter to only devices associated with this user
+    const filtered = allDevices.filter(d => Array.isArray(d.users_permissions_users) && d.users_permissions_users.includes(userId));
+    return filtered;    
   }
 
   // --- EMQX connected snapshot (404 => offline) ---
