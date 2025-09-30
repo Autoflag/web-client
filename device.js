@@ -165,13 +165,22 @@
 
   async function getApiDeviceInfo() {
     try {
-      const userAuthData = JSON.parse(localStorage.getItem(STORAGE_KEY)); 
-      const url = new URL(`${API_BASE}/api/auto-flag-devices`);
-      url.searchParams.set('filters[users_permissions_users][$eq]', userAuthData.user.id);
-      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${userAuthData.jwt}` }});
-      const jsonResult = await res.json();
+      const userAuthData = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      const reqBody = {
+        pagination: { page: 1, limit: 200 },
+        sort: { field: 'deviceName', sortOrder: 1 },
+        filters: { deviceId: { value: DEVICE_ID } },
+      };
+
+      const res = await fetch(new URL(`${API_BASE}/flagDevice/list`), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${userAuthData.jwt}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(reqBody)
+      });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      const arr = Array.isArray(jsonResult?.data) ? jsonResult.data : [];
+
+      const json = await res.json();
+      const arr = Array.isArray(json?.docs) ? json.docs : [];
       const d = arr.find(d => d.deviceId === DEVICE_ID);
       if (d?.deviceName) {
         deviceNameEl.textContent = d.deviceName;
