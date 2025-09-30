@@ -106,6 +106,8 @@
     jsonPreview.value = JSON.stringify(buildPayload());
   }
 
+  let lastPayloadId = null;
+  let currentStep = 1;
   async function sendOnceFlow() {
     if (!('bluetooth' in navigator)) {
       log('Web Bluetooth not supported in this browser.');
@@ -113,6 +115,7 @@
     }
 
     const payload = buildPayload();
+    lastPayloadId = payload.id; // capture for modal action
     btnSendOnce.disabled = true;
 
     /** @type {BluetoothDevice | null} */ let device = null;
@@ -127,6 +130,10 @@
       });
 
       // Step 1: Connect to device, takes up to 10 seconds.
+
+      // Show modal and start at Step 1
+      showProgressModal();
+      setActiveStep(1);
 
       log(`Selected device: ${device.name || '(unnamed)'} (${device.id})`);
       const server = await device.gatt.connect();
@@ -172,20 +179,27 @@
       log(`Sent config to device (${bytes.byteLength} bytes):`);
       log(JSON.stringify(blePayload));
 
+      // Step 1 complete -> Step 2 active
+      markStepDone(1);
+      setActiveStep(2);
+
       // Step 2: Wait for device to ACK and report success/failure.
       const bleResp1 = await bleTxReader.read();
       if (bleResp1.value !== '1') {
-        log(`Error: Device did not ACK configuration payload, received: ${bleResp1.value}`);
+        throw new Error(`Device did not ACK configuration payload, received: ${bleResp1.value}`);
       } else {
         log('Device ACKed configuration payload.');
+        markStepDone(2);
       }
+      setActiveStep(3);
 
       // Step 3: Wait for device to report success/failure applying config.
       const bleResp2 = await bleTxReader.read();
       if (bleResp2.value !== '2') {
-        log(`Error: Device reported configuration failure, received: ${bleResp2.value}`);
+        throw new Error(`Device reported configuration failure, received: ${bleResp2.value}`);
       } else {
         log('Device reported successful configuration.');
+        markStepDone(3);
       }
 
       // Block until the device ends the session.
@@ -195,22 +209,29 @@
       log('BLE pairing complete.');
 
       // Step 4: Register the device to the user.
+      setActiveStep(4);
       log('Registering device to user...');
       await registerDeviceToUser(payload);
+      markStepDone(4);
 
       // Step 5: Wait for device to connect to EMQX broker.
+      setActiveStep(5);
       log('Waiting for device to connect to MQTT broker...');
-      const emqxConnected = await waitForEmqxClientConnection(payload.id, 60_000);
+      const emqxConnected = await waitForEmqxClientConnection(payload.id, 120_000);
       if (!emqxConnected) {
         throw new Error('Timeout waiting for device to connect to MQTT broker.');
       }
+      markStepDone(5);
 
-      // Navigate to the device page for this device.
-      log('Redirecting to device page...');
-      // location.href = `device.html?device_id=${encodeURIComponent(payload.id)}`;
+      // Enable success action
+      btnModalGo.disabled = false;
     } catch (err) {
-      log(`Flow error: ${String(err)}`);
+      log(String(err));
       try { if (device?.gatt?.connected) device.gatt.disconnect(); } catch {}
+
+      // Mark the currently active step as error and surface the error message in the modal
+      markStepError(currentStep);
+      showErrorOnModal(err && err.message ? err.message : String(err));
     } finally {
       btnSendOnce.disabled = false;
       seedDefaults();
@@ -287,4 +308,78 @@
   btnSendOnce?.addEventListener('click', sendOnceFlow);
   btnClear?.addEventListener('click', () => { status.textContent = ''; });
   btnLogin?.addEventListener('click', () => { window.location.href = 'login.html?next=index.html'; });
+
+  // Modal display
+  const modalWrap = $('progressModalWrap');
+  const btnModalGo = $('btnModalGo');
+  const btnModalAnother = $('btnModalAnother');
+
+  function showProgressModal() {
+    for (let i = 1; i <= 5; i++) {
+      const el = $(`step-${i}`);
+      el.classList.remove('active','done','error');
+      el.classList.add('pending');
+    }
+    clearModalError();
+    setActiveStep(1);
+    btnModalGo.disabled = true;
+    modalWrap.classList.remove('hidden');
+  }
+
+  function hideProgressModal() {
+    modalWrap.classList.add('hidden');
+  }
+
+  function setActiveStep(n) {
+    currentStep = n;
+    for (let i = 1; i <= 5; i++) {
+      const el = $(`step-${i}`);
+      if (i < n) {
+        el.classList.remove('pending','active');
+        el.classList.add('done');
+      } else if (i === n) {
+        el.classList.remove('pending','done','error');
+        el.classList.add('active');
+      } else {
+        el.classList.remove('active','done','error');
+        el.classList.add('pending');
+      }
+    }
+  }
+
+  function markStepDone(n) {
+    const el = $(`step-${n}`);
+    el.classList.remove('pending','active','error');
+    el.classList.add('done');
+  }
+
+  function markStepError(n) {
+    const el = $(`step-${n}`);
+    el.classList.remove('pending','active','done');
+    el.classList.add('error');
+  }
+
+  function showErrorOnModal(message) {
+    const box = $('modalError');
+    if (!box) return;
+    box.textContent = String(message ?? 'An unexpected error occurred.');
+    box.classList.remove('hidden');
+  }
+
+  function clearModalError() {
+    const box = $('modalError');
+    if (!box) return;
+    box.textContent = '';
+    box.classList.add('hidden');
+  }
+
+  // Wire modal buttons
+  btnModalAnother?.addEventListener('click', () => { hideProgressModal(); });
+  btnModalGo?.addEventListener('click', () => {
+    if (!lastPayloadId) return;
+    // Navigate to the device page for this device.
+    log('Redirecting to device page...');
+    location.href = `device.html?device_id=${encodeURIComponent(lastPayloadId)}`;
+  });
+
 })();

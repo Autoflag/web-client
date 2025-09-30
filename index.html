@@ -17,8 +17,36 @@
     .grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .muted { opacity: .75; font-size: 12px; }
-    .hidden { display: none; }
+    .hidden { display: none !important; }
     @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal { background: #fff; border-radius: 12px; width: min(560px, 92vw); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .modal header { padding: 16px 20px; border-bottom: 1px solid #eee; font-weight: 700; }
+    .modal .content { padding: 16px 20px; }
+    .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .step { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 10px; padding: 2px 10px; border: 1px solid #eee; border-radius: 8px; min-height: 44px; }
+    /* Icon baseline size + border-box to normalize total size across states */
+    .step .icon { width: 20px; height: 20px; display: inline-block; border-radius: 50%; position: relative; box-sizing: border-box; }
+    /* Ensure all states reserve the same 2px border to avoid height/width shifts */
+    .step.pending .icon,
+    .step.active .icon,
+    .step.done .icon,
+    .step.error .icon { border: 2px solid transparent; }
+    .step.pending .icon { border-color: #bbb; background: transparent; }
+    .step.active .icon { border-color: #007bff; border-top-color: transparent; background: transparent; animation: spin 0.9s linear infinite; }
+    .step.done .icon { background: #16a34a; border-color: #16a34a; }
+    .step.done .icon::after { content: "✓"; position: absolute; inset: 0; color: #fff; font-size: 14px; display: grid; place-items: center; }
+    .step.error { border-color: #dc2626; background: #fff6f6; }
+    .step.error .icon { background: #dc2626; border-color: #dc2626; }
+    .step.error .icon::after { content: "×"; position: absolute; inset: 0; color: #fff; font-size: 14px; display: grid; place-items: center; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .modal footer { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid #eee; }
+    .btn { padding: 10px 14px; font-size: 14px; cursor: pointer; border-radius: 8px; border: 1px solid #ddd; background: #f6f6f6; }
+    .btn.primary { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .alert-error { margin-top: 14px; padding: 12px 14px; border: 1px solid #dc2626; background: #fff6f6; color: #991b1b; border-radius: 8px; font-size: 14px; line-height: 1.35; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -83,6 +111,43 @@
 
   <h3>Log</h3>
   <pre id="status"></pre>
+
+  <div id="progressModalWrap" class="hidden">
+    <div class="modal-overlay">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <header id="modalTitle">Configuring</header>
+        <div class="content">
+          <ul class="steps">
+            <li id="step-1" class="step pending">
+              <span class="icon" aria-hidden="true"></span>
+              <span>Connect to device</span>
+            </li>
+            <li id="step-2" class="step pending">
+              <span class="icon" aria-hidden="true"></span>
+              <span>Send configuration</span>
+            </li>
+            <li id="step-3" class="step pending">
+              <span class="icon" aria-hidden="true"></span>
+              <span>Device applies configuration</span>
+            </li>
+            <li id="step-4" class="step pending">
+              <span class="icon" aria-hidden="true"></span>
+              <span>Register device to your account</span>
+            </li>
+            <li id="step-5" class="step pending">
+              <span class="icon" aria-hidden="true"></span>
+              <span>Device connects to MQTT broker</span>
+            </li>
+          </ul>
+          <div id="modalError" class="alert-error hidden" role="alert"></div>
+        </div>
+        <footer>
+          <button id="btnModalAnother" class="btn">Configure another device</button>
+          <button id="btnModalGo" class="btn primary" disabled>Go to device page</button>
+        </footer>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
