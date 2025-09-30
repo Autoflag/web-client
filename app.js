@@ -106,27 +106,6 @@
     jsonPreview.value = JSON.stringify(buildPayload());
   }
 
-  // Attach notification handler; return an off() function to remove it.
-  function onTxAttach(txChar) {
-    const handler = (ev) => {
-      const dv = /** @type {DataView} */ (ev.target.value);
-      // Decode only the bytes in this notification.
-      const bytes = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
-      const text = dec.decode(bytes);
-      let statusDescription = '';
-      if (text === '1') {
-        statusDescription = ' (Device ACKed payload)';
-      } else if (text === '2') {
-        statusDescription = ' (Device configured successfully with payload)';
-      } else if (text === '3') {
-        statusDescription = ' (Device failed to configure with payload)';
-      }
-      log(`RX from device: ${JSON.stringify(text)}` + statusDescription);
-    };
-    txChar.addEventListener('characteristicvaluechanged', handler);
-    return () => txChar.removeEventListener('characteristicvaluechanged', handler);
-  }
-
   async function sendOnceFlow() {
     if (!('bluetooth' in navigator)) {
       log('Web Bluetooth not supported in this browser.');
@@ -147,6 +126,8 @@
         optionalServices: [SERVICE_UUID]
       });
 
+      // Step 1: Connect to device, takes up to 10 seconds.
+
       log(`Selected device: ${device.name || '(unnamed)'} (${device.id})`);
       const server = await device.gatt.connect();
       log('GATT connected.');
@@ -156,17 +137,24 @@
       // Subscribe first; keep logging until the device disconnects.
       const txChar = await svc.getCharacteristic(TX_CHAR_UUID);
       await txChar.startNotifications();
-      const offTx = onTxAttach(txChar);
-      log('Subscribed to TX indications/notifications. Logging until device disconnects...');
+
+      const { readable, writable } = new TransformStream();
+      const bleTxWriter = writable.getWriter();
+      const bleTxReader = readable.getReader();
+      txChar.addEventListener('characteristicvaluechanged', ev => {
+        // Decode the bytes in this notification as text.
+        bleTxWriter.write(new TextDecoder().decode(ev.target.value));
+      });
+      log('Subscribed to TX indications/notifications.');
 
       // Promise resolves when the device closes the connection.
       const disconnected = new Promise((resolve) => {
-        const onDisc = () => {
+        device.addEventListener('gattserverdisconnected', () => {
           log('GATT disconnected by device.');
-          offTx();
+          bleTxWriter.close().catch(() => {});
+          bleTxReader.cancel().catch(() => {});
           resolve();
-        };
-        device.addEventListener('gattserverdisconnected', onDisc, { once: true });
+        }, { once: true });
       });
 
       // Write the payload after subscription is active.
@@ -184,16 +172,33 @@
       log(`Sent config to device (${bytes.byteLength} bytes):`);
       log(JSON.stringify(blePayload));
 
+      // Step 2: Wait for device to ACK and report success/failure.
+      const bleResp1 = await bleTxReader.read();
+      if (bleResp1.value !== '1') {
+        log(`Error: Device did not ACK configuration payload, received: ${bleResp1.value}`);
+      } else {
+        log('Device ACKed configuration payload.');
+      }
+
+      // Step 3: Wait for device to report success/failure applying config.
+      const bleResp2 = await bleTxReader.read();
+      if (bleResp2.value !== '2') {
+        log(`Error: Device reported configuration failure, received: ${bleResp2.value}`);
+      } else {
+        log('Device reported successful configuration.');
+      }
+
       // Block until the device ends the session.
       await disconnected;
 
       // No explicit disconnect/stopNotifications: peripheral controls session length.
-      log('Flow complete.');
+      log('BLE pairing complete.');
 
-      // Register the device to the user.
+      // Step 4: Register the device to the user.
+      log('Registering device to user...');
       await registerDeviceToUser(payload);
 
-      // Wait for device to connect to EMQX broker.
+      // Step 5: Wait for device to connect to EMQX broker.
       log('Waiting for device to connect to MQTT broker...');
       const emqxConnected = await waitForEmqxClientConnection(payload.id, 60_000);
       if (!emqxConnected) {
@@ -202,7 +207,7 @@
 
       // Navigate to the device page for this device.
       log('Redirecting to device page...');
-      location.href = `device.html?device_id=${encodeURIComponent(payload.id)}`;
+      // location.href = `device.html?device_id=${encodeURIComponent(payload.id)}`;
     } catch (err) {
       log(`Flow error: ${String(err)}`);
       try { if (device?.gatt?.connected) device.gatt.disconnect(); } catch {}
