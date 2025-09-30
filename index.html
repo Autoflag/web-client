@@ -17,21 +17,24 @@
     .grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .muted { opacity: .75; font-size: 12px; }
+    .hidden { display: none; }
     @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-  <h1>AutoFlag BLE Console</h1>
-
-  <div class="muted">
-    Service UUID: <code>3159e1ed-1e93-412c-9591-c146b2ce70fc</code> ·
-    TX: <code>99000ae1-42bd-4ca1-9b00-1815c0cc351f</code> ·
-    RX: <code>99000ae2-42bd-4ca1-9b00-1815c0cc351f</code>
+  <h1>AutoFlag Setup</h1>
+  <div>
+    <span id="userFirstName">-</span>
+    <button id="btnLogin" class="hidden" style="margin-left: 20px;">🔐 Log In</button>
   </div>
   <br />
   <fieldset>
-    <legend>Configuration Payload</legend>
+    <legend>Configuration</legend>
     <div class="grid">
+      <div>
+        <label for="deviceName">Device Name</label>
+        <input id="deviceName" type="text" autocomplete="off" />
+      </div>
       <div>
         <label for="ssid">WiFi SSID</label>
         <input id="ssid" type="text" value="CBB" autocomplete="off" />
@@ -64,18 +67,19 @@
         <label for="cit">City</label>
         <input id="cit" type="text" value="Boise" autocomplete="off" />
       </div>
-      <div>
+      <div style="display:none;">
         <label for="id">Device ID</label>
         <input id="id" type="text" class="mono" inputmode="numeric" pattern="[0-9]{6}" autocomplete="off" />
       </div>
     </div>
-    <label for="jsonPreview">Preview</label>
-    <textarea id="jsonPreview" class="mono" rows="6" spellcheck="false" readonly></textarea>
   </fieldset>
 
   <div id="controls">
-    <button id="btnSendOnce">Send config to device</button>
+    <button id="btnSendOnce">✅ Configure Device</button>
   </div>
+
+  <label for="jsonPreview">Preview</label>
+  <textarea id="jsonPreview" class="mono" rows="6" spellcheck="false" readonly></textarea>
 
   <h3>Log</h3>
   <pre id="status"></pre>

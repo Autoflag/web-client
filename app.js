@@ -13,6 +13,7 @@
   const btnClear = $('btnClear');
   const status = $('status');
 
+  const name = $('deviceName');
   const ssid = $('ssid');
   const pss  = $('pss');
   const id   = $('id');
@@ -20,6 +21,8 @@
   const sta  = $('sta');
   const cit  = $('cit');
   const jsonPreview = $('jsonPreview');
+  const userFirstName = $('userFirstName');
+  const btnLogin = $('btnLogin');
 
   function log(line) {
     const ts = new Intl.DateTimeFormat(undefined, {
@@ -39,8 +42,57 @@
     return String(epochSeconds2025) + suffix;
   }
 
+  function generateRandomName() {
+    const words = [
+      "alpha","bravo","charlie","delta","echo","foxtrot","golf","hotel","india",
+      "juliet","kilo","lima","mike","november","oscar","papa","quebec","romeo",
+      "sierra","tango","uniform","victor","whiskey","xray","yankee","zulu"
+    ];
+    const word1 = words[Math.floor(Math.random() * words.length)];
+    const word2 = words[Math.floor(Math.random() * words.length)];
+    const digits = Math.floor(Math.random() * 900 + 100); // 3 random digits
+    return `${word1}-${word2}-${digits}`;
+  }
+
+  function seedDefaults() {
+    name.value = generateRandomName();
+    id.value = generateID();
+    refreshPreview();
+  }
+  seedDefaults();
+
+  async function setupUserAuth() {
+    try {
+      let authData = localStorage.getItem('autoflag.auth');
+      if (!authData) {
+        throw new Error('No user logged in');
+      }
+      const userAuthData = JSON.parse(authData);
+      // Some user info is in the login auth response
+      // displayLoggedInUser({ firstName: userAuthData.user.firstname });
+
+      const res = await fetch('https://api.autoflagraiser.com/user', {
+        headers: { 'Authorization': `Bearer ${userAuthData.jwt}` }
+      });
+      if (!res.ok) {
+        log(`Error fetching user info: ${res.status} ${res.statusText}`);
+        return;
+      }
+      const data = await res.json();
+      log(`User authenticated: ${data.profile.firstName || '<unnamed>'} <${data.profile.email || '<no email>'}>`);
+      userFirstName.textContent = `Howdy, ${data.profile.firstName || '<unnamed>'}!`;
+    } catch (err) {
+      userFirstName.textContent = '(unauthenticated)';
+      btnLogin.classList.toggle('hidden', false);
+      console.error('Error checking user auth:', err);
+      log('Error checking user auth: ' + String(err));
+    }
+  }
+  setupUserAuth();
+
   function buildPayload() {
     return {
+      name: name.value,
       ssid: ssid.value,
       pss:  pss.value,
       cou:  parseInt(cou.value, 10),
@@ -81,13 +133,7 @@
       return;
     }
 
-    // Build and validate payload before prompting.
     const payload = buildPayload();
-    try { JSON.parse(JSON.stringify(payload)); } catch (err) {
-      log(`Invalid payload: ${String(err)}`);
-      return;
-    }
-
     btnSendOnce.disabled = true;
 
     /** @type {BluetoothDevice | null} */ let device = null;
@@ -125,7 +171,15 @@
 
       // Write the payload after subscription is active.
       const rxChar = await svc.getCharacteristic(RX_CHAR_UUID);
-      const bytes = enc.encode(JSON.stringify(payload));
+      const blePayload = {
+        ssid: payload.ssid,
+        pss:  payload.pss,
+        cou:  payload.cou,
+        sta:  payload.sta,
+        cit:  payload.cit,
+        id:   payload.id,
+      };
+      const bytes = enc.encode(JSON.stringify(blePayload));
       await rxChar.writeValue(bytes);
       log(`Sent to device (${bytes.byteLength} bytes).`);
 
@@ -134,17 +188,61 @@
 
       // No explicit disconnect/stopNotifications: peripheral controls session length.
       log('Flow complete.');
+
+      // Register the device to the user.
+      await registerDeviceToUser(payload);
     } catch (err) {
       log(`Flow error: ${String(err)}`);
       try { if (device?.gatt?.connected) device.gatt.disconnect(); } catch {}
     } finally {
       btnSendOnce.disabled = false;
+      seedDefaults();
     }
+  }
+
+  // POST the device data to the API to add it to the currently logged-in user's list of devices.
+  async function registerDeviceToUser(payload) {
+    let authData = localStorage.getItem('autoflag.auth');
+    if (!authData) {
+      log('Warning: not logged in; cannot register device to user.');
+      return;
+    }
+    const jwt = JSON.parse(authData).jwt;
+
+    const postPayload = {
+      data: {
+        deviceName: payload.name,
+        deviceCity: payload.cit,
+        deviceId: payload.id,
+        deviceState: String(payload.sta),
+        deviceCountry: String(payload.cou),
+        wifiName: payload.ssid,
+        wifiPassword: payload.pss,
+        users_permissions_users: [],
+      }
+    };
+
+    const resp = await fetch(`https://api.autoflagraiser.com/api/auto-flag-devices`, { 
+      method: 'POST', 
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jwt}`,
+      }, 
+      body: JSON.stringify(postPayload)
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '<no body>');
+      throw new Error(`API error registering device for user: ${resp.status} ${resp.statusText}: ${errText}`);
+    }
+    const respData = await resp.json();
+    console.log('API response data:', respData);
+    log('Device registered to user successfully.');
   }
 
   // Initialize defaults
   id.value = generateID();
-  [ssid, pss, id, cou, sta, cit].forEach(el => el.addEventListener('input', refreshPreview));
+  [ssid, pss, id, cou, sta, cit, name].forEach(el => el.addEventListener('input', refreshPreview));
   cou.addEventListener('change', refreshPreview);
   sta.addEventListener('change', refreshPreview);
   refreshPreview();
@@ -152,4 +250,5 @@
   // Wire UI
   btnSendOnce?.addEventListener('click', sendOnceFlow);
   btnClear?.addEventListener('click', () => { status.textContent = ''; });
+  btnLogin?.addEventListener('click', () => { window.location.href = 'login.html?next=index.html'; });
 })();
