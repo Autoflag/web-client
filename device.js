@@ -1,3 +1,5 @@
+import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.min.js';
+
 // AutoFlag MQTT Console (browser)
 
 (() => {
@@ -92,7 +94,6 @@
     log('Missing device_id query parameter. Example: ?device_id=17589400948014EX');
     setButtonsEnabled(false);
     chkMaint.disabled = true;
-    return;
   }
 
   // EMQX API helpers

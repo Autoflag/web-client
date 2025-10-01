@@ -1,3 +1,5 @@
+import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.min.js';
+
 (() => {
   const STORAGE_KEY = 'autoflag.auth';
   const API_BASE = 'https://api.autoflagraiser.com';
