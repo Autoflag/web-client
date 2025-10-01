@@ -58,7 +58,9 @@ import { readLocalAuth, EMQX_BASE, MQTT_URL, fetchApiDevicesList, navigateToLogi
       if (!listEl.querySelector('.card')) {
         listEl.innerHTML = '<div class="muted">No devices.</div>';
       }
-      alert(`Deleted ${label} · ${new Date().toLocaleTimeString()}`);
+      setTimeout(() => {
+        alert(`Deleted ${label} · ${new Date().toLocaleTimeString()}`);
+      }, 100); // allow UI to update
     } catch (err) {
       btnEl.disabled = false;
       btnEl.innerHTML = original;
@@ -84,7 +86,7 @@ import { readLocalAuth, EMQX_BASE, MQTT_URL, fetchApiDevicesList, navigateToLogi
     `;
     const deleteBtn = document.createElement('button');
     deleteBtn.type = 'button';
-    deleteBtn.className = 'delete-btn';
+    deleteBtn.className = 'device-remove';
     deleteBtn.innerHTML = '&times;';
     deleteBtn.title = 'Delete device';
     deleteBtn.setAttribute('aria-label', `Delete ${deviceLabel(d)}`);
