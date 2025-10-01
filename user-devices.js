@@ -1,5 +1,5 @@
 import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.min.js';
-import { readLocalAuth, EMQX_BASE, MQTT_URL, fetchApiDevicesList, navigateToLogin } from './common.js';
+import { readLocalAuth, EMQX_BASE, MQTT_URL, fetchApiDevicesList, navigateToLogin, deleteDeviceFromApi } from './common.js';
 
 (() => {
   const MQTT_OPTS = {
@@ -33,6 +33,40 @@ import { readLocalAuth, EMQX_BASE, MQTT_URL, fetchApiDevicesList, navigateToLogi
   }
 
   function fmt(s) { return s || '—'; }
+  function deviceLabel(d) { return d.deviceName || d.deviceId || 'this device'; }
+
+  async function deleteDeviceCard(device, card, btnEl) {
+    const label = deviceLabel(device);
+    const confirmed = confirm(`Delete ${label}? This cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    if (!device.documentId) {
+      alert('Delete failed: missing device record id');
+      return;
+    }
+
+    const original = btnEl.innerHTML;
+    btnEl.disabled = true;
+    btnEl.innerHTML = '…';
+
+    try {
+      await deleteDeviceFromApi({ deviceDbId: device.documentId, redirectToLogin: true });
+      untrackDevice(device.deviceId);
+      card.remove();
+      if (!listEl.querySelector('.card')) {
+        listEl.innerHTML = '<div class="muted">No devices.</div>';
+      }
+      alert(`Deleted ${label} · ${new Date().toLocaleTimeString()}`);
+    } catch (err) {
+      btnEl.disabled = false;
+      btnEl.innerHTML = original;
+      console.error('Failed to delete device', err);
+      alert(`Delete failed: ${String(err?.message || err)}`);
+    }
+  }
+
   function deviceCard(d) {
     const url = `device.html?device_id=${encodeURIComponent(d.deviceId)}`;
     const el = document.createElement('div');
@@ -48,6 +82,17 @@ import { readLocalAuth, EMQX_BASE, MQTT_URL, fetchApiDevicesList, navigateToLogi
         <span class="chip" data-k="flag">—</span>
       </div>
     `;
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.innerHTML = '&times;';
+    deleteBtn.title = 'Delete device';
+    deleteBtn.setAttribute('aria-label', `Delete ${deviceLabel(d)}`);
+    deleteBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      deleteDeviceCard(d, el, deleteBtn);
+    });
+    el.appendChild(deleteBtn);
     el.addEventListener('click', () => { location.href = url; });
     return el;
   }
@@ -163,6 +208,15 @@ import { readLocalAuth, EMQX_BASE, MQTT_URL, fetchApiDevicesList, navigateToLogi
     }
     // Always issue a STATUS request immediately (will buffer until connected)
     cli.publish(`mqtt_communication/AutoFlag/${deviceId}/IN`, 'STATUS');
+  }
+
+  function untrackDevice(deviceId) {
+    pendingSubs.delete(deviceId);
+    knownCards.delete(deviceId);
+    if (mqttClient) {
+      const outT = `mqtt_communication/AutoFlag/${deviceId}/OUT`;
+      try { mqttClient.unsubscribe(outT); } catch {}
+    }
   }
 
   async function load() {

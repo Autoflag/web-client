@@ -16,7 +16,7 @@
     #status { font-size: 13px; }
 
     .list { display: grid; gap: 10px; margin-top: 8px; }
-    .card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; background: #fff; cursor: pointer; }
+    .card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; background: #fff; cursor: pointer; position: relative; }
     .card:hover { background: #f9fafb; }
     .name { font-weight: 600; }
     .meta { font-size: 13px; opacity: .8; margin-top: 2px; }
@@ -27,6 +27,9 @@
     .chip.ok { background:#e6ffef; color:#166534; border-color:#bbf7d0; }
     .chip.bad { background:#fee2e2; color:#7f1d1d; border-color:#fecaca; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .delete-btn { position:absolute; top:6px; right:6px; width:35px; height:35px; display:flex; align-items:center; justify-content:center; border-radius:9999px; border:1px solid transparent; background:transparent; font-size:20px; line-height:1; padding:0; color:#6b7280; opacity:.7; }
+    .delete-btn:hover { background:#fee2e2; border-color:#fecaca; color:#7f1d1d; opacity:1; }
+    .delete-btn:focus-visible { outline:2px solid #2563eb; outline-offset:2px; opacity:1; }
   </style>
 </head>
 <body>
