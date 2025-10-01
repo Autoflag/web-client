@@ -20,7 +20,7 @@
 
     /* Status panel */
     .panel { background: #f9fafb; border: 1px solid #eee; border-radius: 10px; padding: 12px; margin-top: 10px; }
-    .panel .item { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+    .panel .item { display: flex; align-items: center; padding: 3px 0; }
     .panel .label { min-width: 140px; opacity: .8; }
     .panel .value { font-variant-numeric: tabular-nums; }
     .panel .fine { opacity: .7; font-size: 12px; }
@@ -44,6 +44,7 @@
     .console-header { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
     .console-header h3 { margin: 0; }
     .console-header .push-right { margin-left: auto; }
+    #btnDelete { margin-right: 10px; }
 
     .console-wrap { display: flex; flex-direction: column; max-height: 500px; }
     #log { white-space: pre-wrap; background: #111; color: #eee; padding: 12px; border-radius: 8px; min-height: 220px; flex: 1; min-height: 0; overflow: auto; }
@@ -114,7 +115,10 @@
   <!-- Console header with Echo button on the right -->
   <div class="console-header">
     <h3>Console</h3>
-    <button id="btnEcho" class="push-right" disabled>Echo test</button>
+    <div class="push-right">
+      <button id="btnDelete">Delete</button>
+      <button id="btnEcho" disabled>Echo test</button>
+    </div>
   </div>
   <div class="console-wrap"><pre id="log"></pre></div>
 

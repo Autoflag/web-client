@@ -76,6 +76,7 @@ export async function fetchApiDevicesList(opts = { redirectToLogin: false })  {
       }
       throw new Error('Not authenticated');
     }
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
 
     const json = await res.json();
     if (!Array.isArray(json?.docs) || json.docs.length === 0) {
@@ -89,9 +90,19 @@ export async function fetchApiDevicesList(opts = { redirectToLogin: false })  {
 /**
  * @param {string} deviceId
  */
-export async function fetchApiDeviceInfo(deviceId) {
+export async function fetchApiDeviceInfo(opts = { redirectToLogin: false, deviceId: '' }) {
+  const deviceId = opts.deviceId;
+  if (typeof deviceId !== 'string' || deviceId.length === 0) {
+    throw new Error('Invalid deviceId');
+  }
+
   const userAuthData = readLocalAuth();
-  if (!userAuthData?.jwt) throw new Error('Not authenticated');
+  if (!userAuthData?.jwt) {
+    if (opts?.redirectToLogin) {
+      navigateToLogin();
+    }
+    throw new Error('Not authenticated');
+  }
 
   const reqBody = {
     pagination: { page: 1, limit: 200 },
@@ -104,11 +115,50 @@ export async function fetchApiDeviceInfo(deviceId) {
     headers: { 'Authorization': `Bearer ${userAuthData.jwt}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(reqBody)
   });
+  if (res.status === 401 || res.status === 403) {
+    if (opts?.redirectToLogin) {
+      navigateToLogin();
+    }
+    throw new Error('Not authenticated');
+  }
+
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
 
   const json = await res.json();
   /** @type {ApiDeviceInfo[]} */
   const arr = Array.isArray(json?.docs) ? json.docs : [];
   const device = arr.find(d => d.deviceId === deviceId);
-  return device || null;
+  if (!device) {
+    throw new Error('Device not found from API');
+  }
+  return device;
+}
+
+export async function deleteDeviceFromApi(opts = { redirectToLogin: false, deviceDbId: '' }) {
+  const id = opts.deviceDbId;
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new Error('Invalid deviceDbId');
+  }
+  
+  const userAuthData = readLocalAuth();
+  if (!userAuthData?.jwt) {
+    if (opts?.redirectToLogin) {
+      navigateToLogin();
+    }
+    throw new Error('Not authenticated');
+  }
+
+  // DELETE https://api.autoflagraiser.com/flagDevice/:id
+  // Returns 200 OK with no body
+  const res = await fetch(new URL(`${API_BASE}/flagDevice/${encodeURIComponent(id)}`), {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${userAuthData.jwt}` },
+  });
+  if (res.status === 401 || res.status === 403) {
+    if (opts?.redirectToLogin) {
+      navigateToLogin();
+    }
+    throw new Error('Not authenticated');
+  }
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
 }

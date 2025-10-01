@@ -1,5 +1,5 @@
 import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.min.js';
-import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo } from './common.js';
+import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './common.js';
 
 // AutoFlag MQTT Console (browser)
 
@@ -31,6 +31,7 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo } from './common.js';
   const deviceLocationEl = $('deviceLocation');
   const emqxPanelEl     = $('emqxPanel');
   const statusPanelEl   = $('statusPanel');
+  const btnDelete       = $('btnDelete');
 
   const btns = {
     status: $('btnStatus'),
@@ -55,6 +56,9 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo } from './common.js';
   // Client
   const CLIENT_ID = 'dev-web-app-' + Math.random().toString(16).slice(2, 8);
   clientIdEl.textContent = CLIENT_ID;
+
+  /** @type {import("./common.js").ApiDeviceInfo | null} */
+  let deviceApiInfo = null;
 
   function log(line) {
     const ts = new Intl.DateTimeFormat(undefined, {
@@ -163,16 +167,36 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo } from './common.js';
   }
   fetchEmqxClientMetadataTopic();
 
+  async function deleteDevice() {
+    try {
+      // Use deviceDbId if we have it, otherwise look it up
+      if (!deviceApiInfo) {
+        deviceApiInfo = await fetchApiDeviceInfo({ deviceId: DEVICE_ID });
+      }
+      // Prompt for confirmation
+      if (!confirm(`Are you sure you want to delete this device?\n\nDevice: ${deviceApiInfo.deviceName}\n\nThis action cannot be undone.`)) {
+        return;
+      }
+      log('Deleting device from API...');
+      await deleteDeviceFromApi({ deviceDbId: deviceApiInfo.documentId });
+      log('Device deleted from API.');
+    } catch (error) {
+      console.error('API device delete error', error);
+      log(`Failed to delete device from API: ${String(error)}`);
+      alert(`Failed to delete device: ${String(error)}`);
+    }
+  }
+
   async function displayApiDeviceInfo() {
     try {
-      const d = await fetchApiDeviceInfo(DEVICE_ID);
-      if (d?.deviceName) {
-        deviceNameEl.textContent = d.deviceName;
-        document.title = `AutoFlag: ${d.deviceName}`;
-        deviceLocationEl.textContent = `${d.deviceCountry?.short_name}, ${d.deviceState?.short_name}, ${d.deviceCity}`;
-      }
+      const d = await fetchApiDeviceInfo({ deviceId: DEVICE_ID });
+      deviceApiInfo = d;
+      deviceNameEl.textContent = d.deviceName;
+      document.title = `AutoFlag: ${d.deviceName}`;
+      deviceLocationEl.textContent = `${d.deviceCountry?.short_name}, ${d.deviceState?.short_name}, ${d.deviceCity}`;
     } catch (error) {
       console.error('API device info fetch error', error);
+      log(`Failed to fetch device info from API: ${String(error)}`);
     }
   }
   displayApiDeviceInfo();
@@ -346,5 +370,10 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo } from './common.js';
     fetchEmqxClient();
     fetchEmqxClientMetadataTopic();
   });
+
+  btnDelete.addEventListener('click', () => {
+    deleteDevice();
+  });
+
 })();
 
