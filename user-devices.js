@@ -1,10 +1,7 @@
 import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.min.js';
+import { readLocalAuth, EMQX_BASE, MQTT_URL, fetchApiDevicesList, navigateToLogin } from './common.js';
 
 (() => {
-  const STORAGE_KEY = 'autoflag.auth';
-  const API_BASE = 'https://api.autoflagraiser.com';
-  const EMQX_BASE = 'https://emqx.dev-proxy.api-autoflag.com/api/v5';
-  const MQTT_URL = 'wss://mqtt.dev-proxy.api-autoflag.com/mqtt';
   const MQTT_OPTS = {
     clientId: 'devices-list-' + Math.random().toString(16).slice(2, 8),
     username: 'dev-test',
@@ -24,17 +21,8 @@ import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.mi
 
   function setStatus(text) { statusEl.textContent = text; }
 
-  function readAuth() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch { return null; }
-  }
-
-  function navigateToLogin() {
-    const next = location.pathname + location.search + location.hash;
-    location.replace(`login.html?next=${encodeURIComponent(next)}`);
-  }
-
   function requireAuthOrRedirect() {
-    const auth = readAuth();
+    const auth = readLocalAuth();
     const jwt = auth?.jwt;
     const userId = auth?.user?.id;
     if (!jwt || !userId) {
@@ -64,44 +52,8 @@ import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.mi
     return el;
   }
 
-  async function fetchDevices(jwt, userId) {
-    // Fetch all pages, the max page limit is 200
-    const MAX_PAGE_LIMIT = 200;
-    const allDevices = [];
-    for (let i = 1; i < Infinity; i++) {
-      const reqBody = {
-        pagination: { page: i, limit: MAX_PAGE_LIMIT },
-        sort: { field: 'deviceName', sortOrder: 1 },
-        filters: {
-          deviceName: { value: null },
-          organizationId: { value: null },
-          deviceId: { value: null },
-          deviceCountry: { value: null },
-          deviceState: { value: null }
-        }
-      };
-
-      const url = new URL(`${API_BASE}/flagDevice/list`);
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${jwt}`,
-          'Cache-Control': 'no-cache',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(reqBody)
-      });
-      if (res.status === 401 || res.status === 403) {
-        navigateToLogin();
-        return [];
-      }
-
-      const json = await res.json();
-      if (!Array.isArray(json?.docs) || json.docs.length === 0) {
-        break;
-      }
-      allDevices.push(...json.docs);
-    }
+  async function fetchDevices(userId) {
+    const allDevices = await fetchApiDevicesList({ navigateToLogin: true });
     // Filter to only devices associated with this user
     const filtered = allDevices.filter(d => Array.isArray(d.users_permissions_users) && d.users_permissions_users.includes(userId));
     return filtered;    
@@ -216,7 +168,6 @@ import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.mi
   async function load() {
     const ctx = requireAuthOrRedirect();
     if (!ctx) return;
-    const { jwt, userId } = ctx;
 
     stopOnlinePolling();
 
@@ -225,7 +176,7 @@ import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.mi
     listEl.innerHTML = '<div class="muted">Loading…</div>';
 
     try {
-      const list = await fetchDevices(jwt, userId);
+      const list = await fetchDevices(ctx.userId);
       if (list.length === 0) {
         listEl.innerHTML = '<div class="muted">No devices.</div>';
       } else {

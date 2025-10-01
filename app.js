@@ -1,5 +1,7 @@
 /* AutoFlag BLE Console (Web Bluetooth) */
 
+import { readLocalAuth, API_BASE, EMQX_BASE } from './common.js';
+
 (() => {
   const SERVICE_UUID = '3159e1ed-1e93-412c-9591-c146b2ce70fc';
   const TX_CHAR_UUID = '99000ae1-42bd-4ca1-9b00-1815c0cc351f'; // device -> web (indicate/notify/read)
@@ -63,15 +65,14 @@
 
   async function setupUserAuth() {
     try {
-      let authData = localStorage.getItem('autoflag.auth');
-      if (!authData) {
+      let userAuthData = readLocalAuth();
+      if (!userAuthData) {
         throw new Error('No user logged in');
       }
-      const userAuthData = JSON.parse(authData);
       // Some user info is in the login auth response
       // displayLoggedInUser({ firstName: userAuthData.user.firstname });
 
-      const res = await fetch('https://api.autoflagraiser.com/user', {
+      const res = await fetch(`${API_BASE}/user`, {
         headers: { 'Authorization': `Bearer ${userAuthData.jwt}` }
       });
       if (!res.ok) {
@@ -240,12 +241,11 @@
 
   // POST the device data to the API to add it to the currently logged-in user's list of devices.
   async function registerDeviceToUser(payload) {
-    let authData = localStorage.getItem('autoflag.auth');
+    let authData = readLocalAuth();
     if (!authData) {
       log('Warning: not logged in; cannot register device to user.');
       return;
     }
-    const jwt = JSON.parse(authData).jwt;
 
     const postPayload = {
       data: {
@@ -260,11 +260,11 @@
       }
     };
 
-    const resp = await fetch(`https://api.autoflagraiser.com/api/auto-flag-devices`, { 
+    const resp = await fetch(`${API_BASE}/api/auto-flag-devices`, { 
       method: 'POST', 
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${jwt}`,
+        'Authorization': `Bearer ${authData.jwt}`,
       }, 
       body: JSON.stringify(postPayload)
     });
@@ -281,7 +281,7 @@
 
   async function waitForEmqxClientConnection(deviceId, timeout) {
     const start = Date.now();
-    const url = new URL(`https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(deviceId)}`);
+    const url = new URL(`${EMQX_BASE}/clients/${encodeURIComponent(deviceId)}`);
     while (Date.now() - start < timeout) {
       try {
         const res = await fetch(url, { method: 'GET', cache: 'no-store'});

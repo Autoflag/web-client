@@ -1,6 +1,7 @@
+import { API_BASE, saveLocalAuth } from './common.js';
+
 (() => {
-  const API = 'https://api.autoflagraiser.com/api/auth/local';
-  const STORAGE_KEY = 'autoflag.auth';
+  const API = `${API_BASE}/api/auth/local`;
 
   const $ = (id) => document.getElementById(id);
   const form = $('form');
@@ -38,7 +39,7 @@
       refresh: string; // refresh token (what's this used for?)
     }
     */
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    saveLocalAuth(payload);
     return payload;
   }
 

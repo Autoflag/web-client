@@ -1,11 +1,10 @@
 import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.min.js';
+import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo } from './common.js';
 
 // AutoFlag MQTT Console (browser)
 
-(() => {
-  const STORAGE_KEY = 'autoflag.auth';
-  const API_BASE = 'https://api.autoflagraiser.com';
 
+(() => {
   const $ = (id) => document.getElementById(id);
   const logEl = $('log');
   const deviceIdEl = $('deviceId');
@@ -110,7 +109,7 @@ import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.mi
     emqxLastChecked.textContent = fmtTime(new Date());
   }
   async function fetchEmqxClient() {
-    const url = new URL(`https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(DEVICE_ID)}`);
+    const url = new URL(`${EMQX_BASE}/clients/${encodeURIComponent(DEVICE_ID)}`);
     try {
       const res = await fetch(url, { method: 'GET' });
       if (!res.ok) {
@@ -131,7 +130,7 @@ import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.mi
   fetchEmqxClient();
 
   async function fetchEmqxClientMetadataTopic() {
-    const url = new URL(`https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(DEVICE_ID)}/subscriptions`);
+    const url = new URL(`${EMQX_BASE}/clients/${encodeURIComponent(DEVICE_ID)}/subscriptions`);
     try {
       const res = await fetch(url, { method: 'GET' });
       if (!res.ok) {
@@ -164,25 +163,9 @@ import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.mi
   }
   fetchEmqxClientMetadataTopic();
 
-  async function getApiDeviceInfo() {
+  async function displayApiDeviceInfo() {
     try {
-      const userAuthData = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      const reqBody = {
-        pagination: { page: 1, limit: 200 },
-        sort: { field: 'deviceName', sortOrder: 1 },
-        filters: { deviceId: { value: DEVICE_ID } },
-      };
-
-      const res = await fetch(new URL(`${API_BASE}/flagDevice/list`), {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${userAuthData.jwt}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(reqBody)
-      });
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-
-      const json = await res.json();
-      const arr = Array.isArray(json?.docs) ? json.docs : [];
-      const d = arr.find(d => d.deviceId === DEVICE_ID);
+      const d = await fetchApiDeviceInfo(DEVICE_ID);
       if (d?.deviceName) {
         deviceNameEl.textContent = d.deviceName;
         document.title = `AutoFlag: ${d.deviceName}`;
@@ -192,10 +175,9 @@ import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.mi
       console.error('API device info fetch error', error);
     }
   }
-  getApiDeviceInfo();
+  displayApiDeviceInfo();
 
   // Connect
-  const connectUrl = 'wss://mqtt.dev-proxy.api-autoflag.com/mqtt';
   const options = {
     clientId: CLIENT_ID,
     username: 'dev-test',
@@ -207,7 +189,7 @@ import mqtt from 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.14.1/mqtt.esm.mi
     protocolVersion: 4, // MQTT 3.1.1
   };
 
-  const client = mqtt.connect(connectUrl, options);
+  const client = mqtt.connect(MQTT_URL, options);
 
   let initialStatusReceived = false;
   let maintPending = false;

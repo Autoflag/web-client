@@ -1,6 +1,8 @@
+import { EMQX_BASE } from './common.js';
+
 (() => {
-  const API = 'https://emqx.dev-proxy.api-autoflag.com/api/v5/clients?limit=1000';
-  const SUBS = (id) => `https://emqx.dev-proxy.api-autoflag.com/api/v5/clients/${encodeURIComponent(id)}/subscriptions`;
+  const API = `${EMQX_BASE}/clients?limit=1000`;
+  const SUBS = (id) => `${EMQX_BASE}/clients/${encodeURIComponent(id)}/subscriptions`;
 
   const $ = (sel) => document.querySelector(sel);
   const rows = $('#rows');
