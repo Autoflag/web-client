@@ -1,4 +1,4 @@
-import { EMQX_BASE } from './common.js';
+import { EMQX_BASE, fetchApiDevicesList } from './common.js';
 
 (() => {
   const API = `${EMQX_BASE}/clients?limit=1000`;
@@ -19,6 +19,15 @@ import { EMQX_BASE } from './common.js';
   function ts(s) {
     const t = Date.parse(s);
     return Number.isFinite(t) ? t : 0;
+  }
+
+  function escapeHtml(val) {
+    return String(val ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   function parseMetadataFromTopic(topic) {
@@ -44,9 +53,13 @@ import { EMQX_BASE } from './common.js';
     const efuse = c._efuse || '—';
     const fw = c._firmware || '—';
     const href = `device.html?device_id=${encodeURIComponent(id)}`;
+    const deviceName = typeof c._deviceName === 'string' ? c._deviceName : '';
     return `
       <tr data-id="${id}">
-        <td class="mono"><a href="${href}">${id}</a></td>
+        <td class="mono">
+          <a href="${href}">${id}</a>
+          <div class="device-name">${deviceName ? escapeHtml(deviceName) : '&nbsp;'}</div>
+        </td>
         <td><span class="chip ${connected ? 'on' : 'off'}">${connected ? 'yes' : 'no'}</span></td>
         <td>${connectedAt}</td>
         <td class="mono">${ip}</td>
@@ -127,7 +140,13 @@ import { EMQX_BASE } from './common.js';
     setStatus('Loading…');
     btn.disabled = true;
     try {
-      const root = await fetchJson(API);
+      const [root, apiDevices] = await Promise.all([
+        fetchJson(API),
+        fetchApiDevicesList().catch((err) => {
+          console.warn('Failed to load API devices list', err);
+          return null;
+        }),
+      ]);
       const base = Array.isArray(root?.data) ? root.data : [];
 
       // Optional: sort by connected desc, then clientid
@@ -136,6 +155,24 @@ import { EMQX_BASE } from './common.js';
       // Fetch subscriptions with limited concurrency
       const processed = await mapLimit(base, 10, fetchWithSubs);
       const filtered = processed.filter(Boolean);
+
+      const deviceMap = new Map();
+      if (Array.isArray(apiDevices)) {
+        for (const device of apiDevices) {
+          if (device?.deviceId) {
+            deviceMap.set(device.deviceId, device);
+          }
+        }
+      }
+
+      if (deviceMap.size > 0) {
+        for (const client of filtered) {
+          const deviceInfo = deviceMap.get(client.clientid);
+          if (deviceInfo?.deviceName) {
+            client._deviceName = deviceInfo.deviceName;
+          }
+        }
+      }
 
       render(filtered);
       setStatus(`Loaded ${filtered.length} client(s) · ${new Date().toLocaleTimeString()}`);
