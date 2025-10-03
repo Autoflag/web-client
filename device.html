@@ -30,6 +30,21 @@
     .legend-status { margin-left: auto; padding-right: 10px; }
     .refresh-btn { height: 35px; min-width: 35px !important; color:green; display: flex; flex-direction: column; justify-content: center; font-size: 20px; }
     .disable-text { color: gray; }
+    .value-with-action { display: flex; align-items: center; gap: 10px; }
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      border-top-color: rgba(0, 0, 0, 0.6);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 6px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    #btnCalibrate { padding: 5px 12px; }
 
     /* Control sections */
     .controls { margin: 12px 0; }
@@ -82,7 +97,12 @@
     </legend>
     <div class="item"><div class="label">Battery</div><div class="value" id="sBattery">—</div></div>
     <div class="item"><div class="label">Flag position</div><div class="value" id="sFlag">—</div></div>
-    <div class="item"><div class="label">Calibration</div><div class="value" id="sCal">—</div></div>
+    <div class="item"><div class="label">Calibration</div>
+      <div class="value value-with-action">
+        <span id="sCal">—</span>
+        <button id="btnCalibrate" disabled>Run</button>
+      </div>
+    </div>
     <div class="item"><div class="label">Maintenance</div>
       <div class="value" style="display:flex; align-items:center; gap:10px;">
         <span id="sMaint">—</span>

@@ -42,7 +42,12 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
     upper: $('btnUpper'),
     mid: $('btnMid'),
     lower: $('btnLower'),
+    calibrate: $('btnCalibrate'),
   };
+
+  let initialStatusReceived = false;
+  let maintPending = false;
+  let calibPending = false;
 
   // Read device_id from URL
   const params = new URLSearchParams(window.location.search);
@@ -80,7 +85,10 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
 
   function setButtonsEnabled(yes) {
     const enable = yes && !!DEVICE_ID && initialStatusReceived;
-    Object.values(btns).forEach((b) => b.disabled = !enable);
+    Object.entries(btns).forEach(([key, b]) => {
+      const disabled = !enable || (key === 'calibrate' && calibPending);
+      b.disabled = disabled;
+    });
     // Maintenance checkbox enabled separately below
   }
 
@@ -215,11 +223,25 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
 
   const client = mqtt.connect(MQTT_URL, options);
 
-  let initialStatusReceived = false;
-  let maintPending = false;
+  function renderCalibrationState({ running = false, calibrated = false }) {
+    sCal.replaceChildren();
+    if (running) {
+      const spinner = document.createElement('span');
+      spinner.className = 'spinner';
+      spinner.setAttribute('aria-hidden', 'true');
+      sCal.append(spinner, 'Running...');
+      return;
+    }
+    const label = calibrated ? '🎯 Calibrated' : '🚧 Not calibrated';
+    sCal.textContent = label;
+  }
 
   function setCalibrationStatus(calibrated) {
-    sCal.textContent = calibrated ? '🎯 Calibrated' : '🚧 Not calibrated';
+    renderCalibrationState({ calibrated });
+  }
+
+  function setCalibrationRunning() {
+    renderCalibrationState({ running: true });
   }
 
   function setMaintenanceStatus(on) {
@@ -253,7 +275,7 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
     sFlag.textContent = posText;
 
     // Calibration
-    setCalibrationStatus(fcal);
+    if (!calibPending) setCalibrationStatus(fcal);
 
     // Maintenance
     setMaintenanceStatus(mmode);
@@ -283,6 +305,7 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
     log(`→ Listening to: ${RESP_TOPIC}`);
     log(`← Sending to: ${PUB_TOPIC}`);
     initialStatusReceived = false;
+    calibPending = false;
     setButtonsEnabled(true); // still disabled until initialStatusReceived
     Object.values(btns).forEach((b) => b.disabled = true);
     chkMaint.disabled = true;
@@ -299,12 +322,14 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
     log('Reconnecting…');
     setButtonsEnabled(false);
     chkMaint.disabled = true;
+    calibPending = false;
   });
 
   client.on('close', () => {
     log('Connection closed.');
     setButtonsEnabled(false);
     chkMaint.disabled = true;
+    calibPending = false;
   });
 
   client.on('error', (err) => {
@@ -328,8 +353,23 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
       }
     }
 
-    // Check for responses that end maintenance toggle pending state
     const m = msg.trim().toUpperCase();
+
+    if (m === 'CALIB SUCCESS') {
+      calibPending = false;
+      setCalibrationStatus(true);
+      setButtonsEnabled(true);
+      return;
+    }
+    if (m === 'CALIB FAIL') {
+      calibPending = false;
+      setCalibrationStatus(false);
+      setButtonsEnabled(true);
+      alert('Calibration failed.');
+      return;
+    }
+
+    // Check for responses that end maintenance toggle pending state
     if (maintPending && (m.includes('SUCCESS') || m.includes('FAILED'))) {
       maintPending = false;
       chkMaint.disabled = false;
@@ -354,6 +394,14 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
   btns.upper.addEventListener('click', () => publish('UP'));
   btns.mid.addEventListener('click', () => publish('MID'));
   btns.lower.addEventListener('click', () => publish('DOWN'));
+  btns.calibrate.addEventListener('click', () => {
+    if (calibPending) return;
+    if (!confirm('Run device calibration now?')) return;
+    calibPending = true;
+    btns.calibrate.disabled = true;
+    setCalibrationRunning();
+    publish('CALIB');
+  });
 
   // Maintenance checkbox toggle
   chkMaint.addEventListener('change', () => {
@@ -376,4 +424,3 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
   });
 
 })();
-
