@@ -57,6 +57,7 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
   // Topics
   const PUB_TOPIC = `mqtt_communication/AutoFlag/${DEVICE_ID}/IN`;
   const RESP_TOPIC = `mqtt_communication/AutoFlag/${DEVICE_ID}/OUT`;
+  const WILL_TOPIC = `mqtt_communication/AutoFlag/${DEVICE_ID}/WILL`;
 
   // Client
   const CLIENT_ID = 'dev-web-app-' + Math.random().toString(16).slice(2, 8);
@@ -311,10 +312,14 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
     chkMaint.disabled = true;
 
     client.subscribe(RESP_TOPIC, { qos: 0 }, (err) => {
-      if (err) { log(`Subscribe error: ${String(err)}`); return; }
+      if (err) { log(`Subscribe error (RESP): ${String(err)}`); return; }
       // Request current status immediately
       publish('STATUS');
       log('Requesting device status...');
+    });
+
+    client.subscribe(WILL_TOPIC, { qos: 0 }, (err) => {
+      if (err) { log(`Subscribe error (WILL): ${String(err)}`); return; }
     });
   });
 
@@ -340,7 +345,12 @@ import { EMQX_BASE, MQTT_URL, fetchApiDeviceInfo, deleteDeviceFromApi } from './
   const decoder = new TextDecoder();
   client.on('message', (topic, payload /* Uint8Array */) => {
     const msg = decoder.decode(payload);
-    log(`→ ${msg}`);
+    if (topic === WILL_TOPIC) {
+      log(`→ [WILL] ${msg}`);
+      return;
+    } else {
+      log(`→ ${msg}`);
+    }
 
     // Try to parse JSON status packets
     let parsed = null;
