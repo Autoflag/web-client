@@ -1,7 +1,7 @@
 const AUTH_STORAGE_KEY = 'autoflag.auth';
 export const API_BASE = 'https://api.autoflagraiser.com';
-export const EMQX_BASE = 'https://emqx.dev-proxy.api-autoflag.com/api/v5';
-export const MQTT_URL = 'wss://mqtt.dev-proxy.api-autoflag.com/mqtt';
+export const EMQX_BASE = 'https://emqx-service-proxy.api-autoflag.com/api/v5';
+export const MQTT_URL = 'wss://mqtt-service-proxy.api-autoflag.com/mqtt';
 
 export function readLocalAuth() {
   try {
